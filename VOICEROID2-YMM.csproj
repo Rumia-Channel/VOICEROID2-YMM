@@ -40,9 +40,13 @@
 		</Reference>
 	</ItemGroup>
 
-	<!--ビルド後にYMM4のプラグインフォルダにdllをコピーする-->
+	<!--
+		ビルド後にYMM4のプラグインフォルダにdllをコピーする。
+		YMM4 起動中はファイルがロックされてコピーできないため、失敗時は警告のみにする
+		(次回 YMM4 終了後のビルドで反映される)。
+	-->
 	<Target Name="PostBuild" AfterTargets="PostBuildEvent">
-		<Exec Command="mkdir &quot;$(YMM4DirPath)user\plugin\$(ProjectName)&quot; &gt; NUL 2&gt;&amp;1&#xD;&#xA;copy /Y &quot;$(TargetPath)&quot; &quot;$(YMM4DirPath)user\plugin\$(ProjectName)\&quot;" />
+		<Exec Command="mkdir &quot;$(YMM4DirPath)user\plugin\$(ProjectName)&quot; &gt; NUL 2&gt;&amp;1&#xD;&#xA;copy /Y &quot;$(TargetPath)&quot; &quot;$(YMM4DirPath)user\plugin\$(ProjectName)\&quot; &gt; NUL&#xD;&#xA;if errorlevel 1 echo [VOICEROID2-YMM] warning: YMM4 が起動中のため DLL をコピーできませんでした。YMM4 を終了して再ビルドしてください" IgnoreExitCode="true" />
 	</Target>
 
 </Project>
