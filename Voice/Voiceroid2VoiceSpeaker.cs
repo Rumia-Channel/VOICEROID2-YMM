@@ -16,6 +16,7 @@ public class Voiceroid2VoiceSpeaker : IVoiceSpeaker
     static readonly IReadOnlyDictionary<string, string> KnownVoiceNames = new Dictionary<string, string>(StringComparer.Ordinal)
     {
         ["akari_44"] = "紲星あかり",
+        ["tamiyasu_44"] = "民安ともえ",
     };
 
     /// <summary>音声合成エンジンの表示名。</summary>
