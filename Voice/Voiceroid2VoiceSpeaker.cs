@@ -11,11 +11,11 @@ public class Voiceroid2VoiceSpeaker : IVoiceSpeaker
 {
     /// <summary>
     /// よく知られた声質コード → 表示名。未登録のコードはそのまま表示される。
-    /// (例: akari_44 は aitalk_wrapper のテストコードで確認済み)
+    /// (例: akari_44 = 紲星あかり)
     /// </summary>
     static readonly IReadOnlyDictionary<string, string> KnownVoiceNames = new Dictionary<string, string>(StringComparer.Ordinal)
     {
-        ["akari_44"] = "結月ゆかり",
+        ["akari_44"] = "紲星あかり",
     };
 
     /// <summary>音声合成エンジンの表示名。</summary>
