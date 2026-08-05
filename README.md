@@ -18,7 +18,7 @@ VOICEROID2-YMM/
 ├── code.jpg                          <- 認証シード値の画像 (README 内で参照)
 ├── Voice/
 │   ├── Voiceroid2VoicePlugin.cs      <- IVoicePlugin (エントリポイント)
-│   ├── Voiceroid2VoiceSpeaker.cs     <- IVoiceSpeaker (声質 1 つ分)
+│   ├── Voiceroid2VoiceSpeaker.cs     <- IVoiceSpeaker (声質 1 つ分, ゆっくり記法対応)
 │   ├── Voiceroid2VoiceParameter.cs   <- 話速 / ピッチ / 抑揚 / 音量 / ポーズ
 │   ├── Voiceroid2VoiceSettings.cs    <- 設定 (声質キャッシュ + 読み仮名辞書)
 │   ├── Voiceroid2VoicePronounce.cs   <- 合成結果 (読み記号) の保持
@@ -27,6 +27,7 @@ VOICEROID2-YMM/
 │       ├── AITalkApi.cs              <- 構造体 / コールバック / 関数ポインタ
 │       ├── AITalkEngine.cs           <- ライブラリ初期化・読み変換・音声合成
 │       ├── AITalkInstallation.cs     <- インストール先検出 (環境変数 + レジストリ)
+│       ├── AquesTalkKana.cs          <- ゆっくり記法のアクセント指定 (') 変換
 │       ├── ReadingApplier.cs         <- 読み仮名辞書 (表記 → 読み)
 │       └── WavFile.cs                <- WAV 書き出し (依存なし)
 └── tests/
@@ -106,6 +107,22 @@ CI ビルドにも認証コードが埋め込まれます (未登録でもビル
 4. 音声パラメータで、話速、ピッチ、抑揚、音量、ポーズ (文間) を調整できる。
 5. 合成時、`Documents\VOICEROID2` のユーザー辞書 (単語 / フレーズ / 記号ポーズ) が
    存在すれば自動で読み込まれる。
+
+### アクセントの指定 (ゆっくり記法)
+
+ゆっくりボイス (AquesTalk) と同様に、**モーラの直後に「'」(アポストロフィ)** を置くと
+そのモーラからピッチが下がります。
+
+| 入力 | 意味 |
+|------|------|
+| `ハ'シ` | は**し** (橋: ハで下がる) |
+| `ハシ'` | はし (箸: シで下がる) |
+| `ゆっ'くりしていってね` | ゆっ**く**り… (既定は ゆ にアクセント) |
+
+- YMM4 の発音 (読み) 欄にも「'」でアクセントが入った読みが自動生成されるので、
+  そこを直接編集してアクセントを調整できます (セリフ欄に書いても反映されます)。
+- 読みは AITalk の読み記号 (AI-Kana) を介して変換されるため、かなのモーラ数が
+  ずれる場合はアクセント指定が無視されて既定の読みで合成されます。
 
 ### 設定画面
 

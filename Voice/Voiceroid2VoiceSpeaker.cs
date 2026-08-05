@@ -34,8 +34,12 @@ public class Voiceroid2VoiceSpeaker : IVoiceSpeaker
     /// <summary>商用ソフト (VOICEROID2) で生成するため true。</summary>
     public bool IsVoiceDataCachingRequired => true;
 
-    /// <summary>サポートするテキスト書式。VOICEROID2 は通常の日本語テキストを話す。</summary>
-    public SupportedTextFormat Format => SupportedTextFormat.Text;
+    /// <summary>
+    /// サポートするテキスト書式。ゆっくりボイス形式 (AquesTalk 記法) に対応し、
+    /// YMM4 の発音 (読み) 編集 UI を使えるようにする。アクセント核は
+    /// モーラ直後の「'」で指定できる (例: ハ'シ)。
+    /// </summary>
+    public SupportedTextFormat Format => SupportedTextFormat.Yukkuri;
 
     /// <summary>音声合成前に利用規約同意が必要ならインスタンスを返す (未使用)。</summary>
     public IVoiceLicense? License => null;
@@ -58,10 +62,47 @@ public class Voiceroid2VoiceSpeaker : IVoiceSpeaker
         => currentParameter is Voiceroid2VoiceParameter p ? p : CreateVoiceParameter();
 
     /// <summary>
-    /// VOICEROID2 側の読み変換は <see cref="CreateVoiceAsync"/> 内で行うため未使用。
+    /// セリフを編集可能な読み (かな + アクセントマーク「'」) へ変換する。
+    /// YMM4 の読み UI (SupportedTextFormat.Yukkuri) 用。変換に失敗した場合は
+    /// 入力テキストをそのまま返す。
     /// </summary>
     public Task<string> ConvertKanjiToYomiAsync(string text, IVoiceParameter voiceParameter)
-        => Task.FromResult(text);
+    {
+        var param = voiceParameter as Voiceroid2VoiceParameter;
+        if (param is null || string.IsNullOrWhiteSpace(param.VoiceName))
+            return Task.FromResult(text);
+
+        var settings = Voiceroid2VoiceSettings.Default;
+        string speakText = ReadingApplier.Apply(text, settings.ReadingEntries);
+
+        return Task.Run(async () =>
+        {
+            await Voiceroid2EngineGate.Semaphore.WaitAsync();
+            try
+            {
+                AITalkEngine.EnsureOpened(
+                    AITalkInstallation.EnvValue(AITalkInstallation.EnvInstallDir),
+                    AITalkInstallation.EnvValue(AITalkInstallation.EnvUserDir),
+                    param.VoiceName);
+
+                // セリフ内の「'」を読みへ反映してから編集用かなに変換する
+                string plain = AquesTalkKana.StripAccentMarks(speakText);
+                byte[] kana = AITalkEngine.TextToKana(plain);
+                string aiKana = AITalkEngine.DecodeAnsiText(kana);
+                aiKana = AquesTalkKana.ApplyAccentMarks(speakText, aiKana);
+                return AquesTalkKana.ToEditableKana(aiKana);
+            }
+            catch
+            {
+                // 読み変換に失敗しても YMM4 の読み UI は落とさない
+                return text;
+            }
+            finally
+            {
+                Voiceroid2EngineGate.Semaphore.Release();
+            }
+        });
+    }
 
     /// <summary>
     /// aitalked.dll を介してテキストを WAV ファイルへ合成する。
@@ -99,8 +140,12 @@ public class Voiceroid2VoiceSpeaker : IVoiceSpeaker
                     AITalkInstallation.EnvValue(AITalkInstallation.EnvUserDir),
                     VoiceName);
 
-                var kana = AITalkEngine.TextToKana(speakText);
-                var pcm = AITalkEngine.KanaToSpeech(kana, new AITalkSpeakerParams(
+                // アクセントマーク「'」を読み (AI-Kana) へ反映する
+                string plain = AquesTalkKana.StripAccentMarks(speakText);
+                byte[] kana = AITalkEngine.TextToKana(plain);
+                string aiKana = AITalkEngine.DecodeAnsiText(kana);
+                byte[] edited = AITalkEngine.EncodeAnsiText(AquesTalkKana.ApplyAccentMarks(speakText, aiKana));
+                var pcm = AITalkEngine.KanaToSpeech(edited, new AITalkSpeakerParams(
                     Volume: (float)param.Volume,
                     Speed: (float)param.Speed,
                     Pitch: (float)param.Pitch,
@@ -112,7 +157,7 @@ public class Voiceroid2VoiceSpeaker : IVoiceSpeaker
                 {
                     SourceText = speakText,
                     NarratorName = VoiceName,
-                    Kana = kana,
+                    Kana = edited,
                 };
             });
         }

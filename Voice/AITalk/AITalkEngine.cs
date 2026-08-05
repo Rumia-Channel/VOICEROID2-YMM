@@ -711,6 +711,32 @@ internal static class AITalkEngine
         return 0;
     }
 
+    /// <summary>表示用文字列を読み記号 (AI-Kana) バイト列へ変換する (OS の ANSI コードページ)。</summary>
+    public static byte[] EncodeAnsiText(string text)
+    {
+        if (string.IsNullOrEmpty(text)) return Array.Empty<byte>();
+        IntPtr ptr = Marshal.StringToCoTaskMemAnsi(text);
+        try
+        {
+            var list = new List<byte>(text.Length * 2);
+            for (int i = 0; ; i++)
+            {
+                byte b = Marshal.ReadByte(ptr, i);
+                if (b == 0) break;
+                list.Add(b);
+            }
+            return list.ToArray();
+        }
+        finally
+        {
+            Marshal.FreeCoTaskMem(ptr);
+        }
+    }
+
+    /// <summary>読み記号 (AI-Kana) バイト列を表示用文字列へ変換する。</summary>
+    public static string DecodeAnsiText(byte[] bytes)
+        => DecodeAnsi(bytes ?? Array.Empty<byte>());
+
     /// <summary>
     /// ANSI バイト列を文字列へデコードする。OS の ANSI コードページ (GetACP) を使うため、
     /// System.Text.Encoding.CodePages のような追加依存は不要。

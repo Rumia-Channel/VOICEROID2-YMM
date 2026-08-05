@@ -125,11 +125,17 @@ if (args.Length >= 2 && args[0] == "--real")
         AITalkEngine.ApplySpeakerParams(new AITalkSpeakerParams(Volume: 1.0f, Speed: 1.0f, Pitch: 1.0f, Range: 1.0f, PauseSentence: 500));
         Console.WriteLine("speaker params applied (real)");
 
-        byte[] kana = AITalkEngine.TextToKana("こんにちは、ゆっくりしていってね。");
-        Console.WriteLine($"kana ({kana.Length} bytes): {AnsiToString(kana)}");
+        string source = "こんにちは、ゆっ'くりしていってね。";
+        byte[] kana = AITalkEngine.TextToKana(AquesTalkKana.StripAccentMarks(source));
+        string aiKana = AITalkEngine.DecodeAnsiText(kana);
+        string edited = AquesTalkKana.ApplyAccentMarks(source, aiKana);
+        Console.WriteLine($"kana ({kana.Length} bytes): {aiKana}");
+        Console.WriteLine($"edited: {edited}");
+        Console.WriteLine($"editable kana: {AquesTalkKana.ToEditableKana(edited)}");
+        Check(edited.Contains('^'), "accent mark applied to AI-Kana");
 
         var pcm = AITalkEngine.KanaToSpeech(
-            kana,
+            AITalkEngine.EncodeAnsiText(edited),
             new AITalkSpeakerParams(Volume: 1.0f, Speed: 1.0f, Pitch: 1.0f, Range: 1.0f, PauseSentence: 500));
         Console.WriteLine($"pcm samples: {pcm.Length} ({(double)pcm.Length / 44100:F2} s)");
         Check(pcm.Length > 1000, "real synthesis produced audio");
@@ -330,6 +336,21 @@ try
     Check(ReadingApplier.Apply("無効なエントリ", entries) == "無効なエントリ", "applier: disabled entry ignored");
     Check(ReadingApplier.Apply("あいうえお", entries) == "あいうえお", "applier: no match unchanged");
     Check(ReadingApplier.Apply(string.Empty, entries) == string.Empty, "applier: empty text");
+
+    // ---------------- AquesTalk アクセント記法 (AquesTalkKana) ----------------
+    Check(AquesTalkKana.SplitMorae("コンニチワ").Count == 5, "mora split: コンニチワ");
+    Check(AquesTalkKana.SplitMorae("ユックリ").Count == 4, "mora split: ユックリ (ッ は独立)");
+    Check(AquesTalkKana.SplitMorae("キャッ").Count == 2, "mora split: キャッ (拗音+促音)");
+    Check(AquesTalkKana.SplitMorae("コーヒー").Count == 2, "mora split: コーヒー (ー は連結)");
+    Check(AquesTalkKana.SplitMorae("ゆっくり").Count == 4, "mora split: ひらがな");
+    Check(AquesTalkKana.StripAccentMarks("ハ'シ") == "ハシ", "strip accent marks");
+    Check(AquesTalkKana.ApplyAccentMarks("ハ'シ", "ハシ") == "ハ^シ", "apply accent: ハ'シ");
+    Check(AquesTalkKana.ApplyAccentMarks("ハシ'", "ハシ") == "ハシ^", "apply accent: ハシ'");
+    Check(AquesTalkKana.ApplyAccentMarks("ハ'シ", "ハ^シ") == "ハ^シ", "replace default accent in same phrase");
+    Check(AquesTalkKana.ApplyAccentMarks("カ'メ", "カメラ") == "カメラ", "mora mismatch falls back unchanged");
+    Check(AquesTalkKana.ApplyAccentMarks("コ'ンニチワ、サヨウナラ", "コ^ンニチワ$2_2サ^ヨウナラ") == "コ^ンニチワ$2_2サ^ヨウナラ", "accent applied to marked phrase only");
+    Check(AquesTalkKana.ToEditableKana("<S>(Irq MARK=_AI@12)コ^ンニチワ$2_2ユ^ック!リ<H>") == "コ'ンニチワ、ユ'ックリ", "AI-Kana to editable kana");
+    Check(AquesTalkKana.ToEditableKana("ハシ") == "ハシ", "editable kana passthrough");
 }
 finally
 {
