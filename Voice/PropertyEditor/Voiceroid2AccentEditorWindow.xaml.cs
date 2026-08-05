@@ -34,13 +34,13 @@ public partial class Voiceroid2AccentEditorWindow : Window
     {
         vm.Commit();
         committed = true;
-        DialogResult = true;
         Close();
     }
 
     void CancelButton_Click(object sender, RoutedEventArgs e)
     {
-        DialogResult = false;
+        // 非モーダル表示 (Show) のため DialogResult は使えない。committed フラグで
+        // 確定/破棄を判別する (Close で OnClosed → Revert)。
         Close();
     }
 
