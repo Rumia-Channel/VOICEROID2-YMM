@@ -118,6 +118,15 @@ public class Voiceroid2VoiceSpeaker : IVoiceSpeaker
         var settings = Voiceroid2VoiceSettings.Default;
         string speakText = ReadingApplier.Apply(text, settings.ReadingEntries);
 
+        // (2) アクセントエディタでの手動編集があれば、その読み (編集用かな) を優先する
+        if (pronounce is Voiceroid2VoicePronounce p
+            && p.IsManualEdit
+            && p.Matches(speakText, VoiceName)
+            && !string.IsNullOrWhiteSpace(p.EditKana))
+        {
+            speakText = p.EditKana;
+        }
+
         // (2) 合成 (aitalked.dll へのアクセスは共有ゲートで排他する)
         await Voiceroid2EngineGate.Semaphore.WaitAsync();
         try
@@ -157,7 +166,8 @@ public class Voiceroid2VoiceSpeaker : IVoiceSpeaker
                 {
                     SourceText = speakText,
                     NarratorName = VoiceName,
-                    Kana = edited,
+                    // アクセントエディタの基準として編集用かなも保存する
+                    EditKana = AquesTalkKana.ToEditableKana(AITalkEngine.DecodeAnsiText(edited)),
                 };
             });
         }

@@ -351,6 +351,26 @@ try
     Check(AquesTalkKana.ApplyAccentMarks("コ'ンニチワ、サヨウナラ", "コ^ンニチワ$2_2サ^ヨウナラ") == "コ^ンニチワ$2_2サ^ヨウナラ", "accent applied to marked phrase only");
     Check(AquesTalkKana.ToEditableKana("<S>(Irq MARK=_AI@12)コ^ンニチワ$2_2ユ^ック!リ<H>") == "コ'ンニチワ、ユ'ックリ", "AI-Kana to editable kana");
     Check(AquesTalkKana.ToEditableKana("ハシ") == "ハシ", "editable kana passthrough");
+
+    // ---------------- アクセントエディタのデータモデル (AccentEditKana) ----------------
+    var accentWords = AccentEditKana.Parse("コ'ンニチワ、ユ'ックリ");
+    Check(accentWords.Count == 3, "accent parse: 3 words (2 kana + 1 punctuation)");
+    Check(accentWords[0].Text == "コンニチワ" && accentWords[0].AccentPosition == 0, "accent parse: word0 position");
+    Check(accentWords[0].Moras.Count == 5, "accent parse: word0 morae");
+    Check(accentWords[1].IsPunctuation && accentWords[1].Text == "、", "accent parse: punctuation word");
+    Check(accentWords[2].AccentPosition == 0, "accent parse: word2 position (ユ'ックリ)");
+    Check(AccentEditKana.Build(accentWords) == "コ'ンニチワ、ユ'ックリ", "accent build round trip");
+
+    var accentWords2 = AccentEditKana.Parse("ハシ'");
+    Check(accentWords2.Count == 1 && accentWords2[0].AccentPosition == 1, "accent parse: trailing mark");
+    Check(AccentEditKana.Build(accentWords2) == "ハシ'", "accent build: trailing mark");
+
+    var accentWords3 = AccentEditKana.Parse("ハシ。");
+    Check(accentWords3.Count == 2 && accentWords3[0].AccentPosition == -1 && accentWords3[1].IsPunctuation, "accent parse: no mark + punctuation");
+    Check(AccentEditKana.Build(accentWords3) == "ハシ。", "accent build: no mark");
+
+    var accentWords4 = AccentEditKana.Parse(string.Empty);
+    Check(accentWords4.Count == 0 && AccentEditKana.Build(accentWords4) == string.Empty, "accent parse: empty");
 }
 finally
 {

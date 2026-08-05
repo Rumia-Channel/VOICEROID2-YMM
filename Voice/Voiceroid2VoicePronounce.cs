@@ -1,5 +1,7 @@
 using System.ComponentModel;
+using System.ComponentModel.DataAnnotations;
 using Voiceroid2Ymm.Voice.AITalk;
+using Voiceroid2Ymm.Voice.PropertyEditor;
 using YukkuriMovieMaker.Commons;
 using YukkuriMovieMaker.Plugin.Voice;
 using YukkuriMovieMaker.UndoRedo;
@@ -7,14 +9,15 @@ using YukkuriMovieMaker.UndoRedo;
 namespace Voiceroid2Ymm.Voice;
 
 /// <summary>
-/// VOICEROID2 の合成結果 (読み記号) を保持する <see cref="IVoicePronounce"/> 実装。
-/// v1 では合成の再現用メタデータとして使う (手動編集 UI は未実装)。
+/// VOICEROID2 の合成結果 (編集用かな) を保持する <see cref="IVoicePronounce"/> 実装。
+/// アクセントエディタ (VOICEPEAK-plus のアクセント画面の移植) で編集した内容は
+/// <see cref="EditKana"/> に保存され、次回合成時に反映される。
 /// </summary>
 public sealed class Voiceroid2VoicePronounce : UndoRedoable, IVoicePronounce
 {
     string sourceText = string.Empty;
     string narratorName = string.Empty;
-    byte[] kana = Array.Empty<byte>();
+    string editKana = string.Empty;
     bool isManualEdit;
 
     /// <summary>合成対象テキスト (読み仮名辞書適用後)。</summary>
@@ -33,15 +36,20 @@ public sealed class Voiceroid2VoicePronounce : UndoRedoable, IVoicePronounce
         set => Set(ref narratorName, value ?? string.Empty);
     }
 
-    /// <summary>aitalked.dll が出力した読み記号 (AI Kana, ANSI バイト列)。</summary>
-    [Browsable(false)]
-    public byte[] Kana
+    /// <summary>
+    /// 編集用かな (アクセントマーク「'」付き)。「VOICEROID2 発音編集 (アクセント)」ボタンで
+    /// アクセント位置を編集できる。
+    /// </summary>
+    [Display(Name = " ", Description = "VOICEROID2 の発音・アクセント編集")]
+    [Voiceroid2AccentEditor(PropertyEditorSize = PropertyEditorSize.FullWidth)]
+    [DefaultValue("")]
+    public string EditKana
     {
-        get => kana;
-        set => Set(ref kana, value ?? Array.Empty<byte>());
+        get => editKana;
+        set => Set(ref editKana, value ?? string.Empty);
     }
 
-    /// <summary>v1 では常に false (自動生成のみ)。</summary>
+    /// <summary>アクセントエディタでの手動編集が有効か。</summary>
     [Browsable(false)]
     public bool IsManualEdit
     {
@@ -58,12 +66,21 @@ public sealed class Voiceroid2VoicePronounce : UndoRedoable, IVoicePronounce
         => string.Equals(SourceText, text, StringComparison.Ordinal)
         && string.Equals(NarratorName, narrator, StringComparison.Ordinal);
 
+    /// <summary>編集内容をまとめて設定する (アクセントエディタの OK / キャンセル用)。</summary>
+    public void SetEditKana(string text, string narrator, string kana, bool manual)
+    {
+        SourceText = text;
+        NarratorName = narrator;
+        EditKana = kana;
+        IsManualEdit = manual;
+    }
+
     public IVoicePronounce Clone()
         => new Voiceroid2VoicePronounce
         {
             SourceText = SourceText,
             NarratorName = NarratorName,
-            Kana = (byte[])Kana.Clone(),
+            EditKana = EditKana,
             IsManualEdit = IsManualEdit,
             LipSyncFrames = LipSyncFrames?.ToArray(),
         };

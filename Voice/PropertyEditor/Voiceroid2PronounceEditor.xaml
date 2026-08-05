@@ -1,0 +1,50 @@
+<UserControl x:Class="Voiceroid2Ymm.Voice.PropertyEditor.Voiceroid2PronounceEditor"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d"
+             d:DesignHeight="40"
+             d:DesignWidth="320">
+    <UserControl.Resources>
+        <Style x:Key="VrOpenButtonStyle" TargetType="{x:Type Button}">
+            <Setter Property="MinHeight" Value="30"/>
+            <Setter Property="MinWidth" Value="200"/>
+            <Setter Property="Padding" Value="14,5"/>
+            <Setter Property="HorizontalAlignment" Value="Left"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Foreground" Value="#FFFFFF"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="{x:Type Button}">
+                        <Border x:Name="B"
+                                Background="#565860"
+                                BorderBrush="#565860"
+                                BorderThickness="1"
+                                CornerRadius="6"
+                                Padding="{TemplateBinding Padding}"
+                                SnapsToDevicePixels="True">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="B" Property="Background" Value="#6A6D77"/>
+                                <Setter TargetName="B" Property="BorderBrush" Value="#6A6D77"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Opacity" Value="0.5"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </UserControl.Resources>
+    <Grid>
+        <Button x:Name="OpenWindowButton"
+                Style="{StaticResource VrOpenButtonStyle}"
+                Content="VOICEROID2 発音編集 (アクセント)..."
+                Click="OpenWindow_Click"
+                IsEnabled="False"/>
+    </Grid>
+</UserControl>

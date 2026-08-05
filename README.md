@@ -21,8 +21,12 @@ VOICEROID2-YMM/
 │   ├── Voiceroid2VoiceSpeaker.cs     <- IVoiceSpeaker (声質 1 つ分, ゆっくり記法対応)
 │   ├── Voiceroid2VoiceParameter.cs   <- 話速 / ピッチ / 抑揚 / 音量 / ポーズ
 │   ├── Voiceroid2VoiceSettings.cs    <- 設定 (声質キャッシュ + 読み仮名辞書)
-│   ├── Voiceroid2VoicePronounce.cs   <- 合成結果 (読み記号) の保持
+│   ├── Voiceroid2VoicePronounce.cs   <- 合成結果 (編集用かな) の保持
 │   ├── Settings/                     <- 設定画面 (VoicePeak-plus デザイン踏襲)
+│   ├── PropertyEditor/               <- アクセントエディタ (VoicePeak-plus のアクセント画面を移植)
+│   │   ├── AccentLineControl.xaml    <- 高低ラインの表示・クリック編集
+│   │   ├── Voiceroid2AccentEditorWindow.xaml <- 発音編集ウィンドウ
+│   │   └── Voiceroid2AccentEditorAttribute.cs <- YMM4 プロパティエディタ連携
 │   └── AITalk/                       <- aitalked.dll 操作層 (aitalk_wrapper の C# 移植)
 │       ├── AITalkApi.cs              <- 構造体 / コールバック / 関数ポインタ
 │       ├── AITalkEngine.cs           <- ライブラリ初期化・読み変換・音声合成
@@ -123,6 +127,17 @@ CI ビルドにも認証コードが埋め込まれます (未登録でもビル
   そこを直接編集してアクセントを調整できます (セリフ欄に書いても反映されます)。
 - 読みは AITalk の読み記号 (AI-Kana) を介して変換されるため、かなのモーラ数が
   ずれる場合はアクセント指定が無視されて既定の読みで合成されます。
+
+### アクセントエディタ (VOICEPEAK-plus のアクセント画面を移植)
+
+音声アイテムのプロパティにある「VOICEROID2 発音編集 (アクセント)...」ボタンから、
+アクセント位置をグラフィカルに編集できるウィンドウが開きます。
+
+- 単語 (アクセント句) ごとに、カタカナのモーラと VOICEPEAK 風の高低ラインが表示される
+- **モーラをクリック**すると、そのモーラからピッチが下がる位置にアクセント核が移動する
+  (同じモーラをもう一度クリックすると指定を解除してエンジン既定へ)
+- 「プレビュー再生」で編集中の読みを試聴できる
+- 「OK (適用)」で反映、キャンセルで破棄。反映後はその読みが合成に使われる
 
 ### 設定画面
 
