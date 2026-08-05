@@ -1,0 +1,152 @@
+<UserControl x:Class="Voiceroid2Ymm.Voice.Settings.Voiceroid2SettingsView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:local="clr-namespace:Voiceroid2Ymm.Voice"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d"
+             d:DesignHeight="460" d:DesignWidth="640">
+    <UserControl.Resources>
+        <Style TargetType="DataGridColumnHeader">
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Padding" Value="6,4"/>
+            <Setter Property="Foreground" Value="#565A62"/>
+            <Setter Property="Background" Value="#E4E9F0"/>
+        </Style>
+        <Style x:Key="VrButtonStyle" TargetType="{x:Type Button}">
+            <Setter Property="MinWidth" Value="80"/>
+            <Setter Property="Height" Value="28"/>
+            <Setter Property="Padding" Value="10,0"/>
+            <Setter Property="Foreground" Value="#565A62"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="{x:Type Button}">
+                        <Border x:Name="B"
+                                Background="#FFFFFF"
+                                BorderBrush="#DDE1E7"
+                                BorderThickness="1"
+                                CornerRadius="6"
+                                Padding="{TemplateBinding Padding}"
+                                SnapsToDevicePixels="True">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="B" Property="Background" Value="#F2F6FB"/>
+                                <Setter TargetName="B" Property="BorderBrush" Value="#BCD0E8"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Opacity" Value="0.5"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <Style x:Key="VrGroupBoxStyle" TargetType="{x:Type GroupBox}">
+            <Setter Property="Foreground" Value="#565A62"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+        </Style>
+    </UserControl.Resources>
+    <DockPanel Margin="8">
+
+        <!-- ============ 接続設定 ============ -->
+        <GroupBox DockPanel.Dock="Top" Header="接続 (VOICEROID2 / aitalked.dll)" Padding="8" Style="{StaticResource VrGroupBoxStyle}">
+            <StackPanel>
+                <DockPanel Margin="0,0,0,6">
+                    <TextBlock DockPanel.Dock="Left"
+                               Text="インストール先"
+                               VerticalAlignment="Center"
+                               Margin="0,0,8,0"/>
+                    <TextBlock x:Name="InstallDirText"
+                               Text="(未検出)"
+                               Foreground="#565A62"
+                               TextWrapping="Wrap"/>
+                </DockPanel>
+                <DockPanel Margin="0,0,0,6">
+                    <TextBlock DockPanel.Dock="Left"
+                               Text="ユーザーデータ (辞書)"
+                               VerticalAlignment="Center"
+                               Margin="0,0,8,0"/>
+                    <TextBlock x:Name="UserDirText"
+                               Text="(未検出)"
+                               Foreground="#565A62"
+                               TextWrapping="Wrap"/>
+                </DockPanel>
+                <DockPanel Margin="0,0,0,6">
+                    <TextBlock DockPanel.Dock="Left"
+                               Text="認証シード"
+                               VerticalAlignment="Center"
+                               Margin="0,0,8,0"/>
+                    <TextBlock x:Name="SeedStatusText"
+                               Text="(未確認)"
+                               Foreground="#565A62"
+                               TextWrapping="Wrap"/>
+                </DockPanel>
+                <DockPanel Margin="0,0,0,6">
+                    <TextBlock DockPanel.Dock="Left"
+                               Text="声質一覧"
+                               VerticalAlignment="Center"
+                               Margin="0,0,8,0"/>
+                    <TextBlock x:Name="VoiceCountText"
+                               Text="(未取得)"
+                               Foreground="#565A62"
+                               TextWrapping="Wrap"/>
+                </DockPanel>
+                <StackPanel Orientation="Horizontal">
+                    <Button Content="再検出"
+                            Style="{StaticResource VrButtonStyle}"
+                            Margin="0,0,6,0"
+                            Click="RefreshButton_Click"/>
+                    <Button Content="声質一覧を更新"
+                            Style="{StaticResource VrButtonStyle}"
+                            Click="UpdateVoicesButton_Click"/>
+                </StackPanel>
+                <TextBlock Text="※ パスやシード値は設定に保存されません。環境変数で指定します: VOICEROID2_YMM_INSTALL_DIR (インストール先の上書き)、VOICEROID2_YMM_USER_DIR (ユーザーデータの上書き)、VOICEROID2_AUTH_SEED (認証シード。値はリポジトリの code.jpg を参照)"
+                           Opacity="0.6"
+                           FontSize="11"
+                           TextWrapping="Wrap"
+                           Margin="0,6,0,0"/>
+            </StackPanel>
+        </GroupBox>
+
+        <!-- ============ 辞書 ============ -->
+        <StackPanel DockPanel.Dock="Bottom" Margin="0,6,0,0">
+            <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
+                <TextBlock Text="空行は保存時に自動で削除されます" VerticalAlignment="Center" Opacity="0.6" FontSize="11"/>
+            </StackPanel>
+            <StackPanel Orientation="Horizontal">
+                <Button Content="追加" Style="{StaticResource VrButtonStyle}" Margin="0,0,6,0" Click="AddButton_Click"/>
+                <Button Content="削除" Style="{StaticResource VrButtonStyle}" Margin="0,0,6,0" Click="RemoveButton_Click"/>
+            </StackPanel>
+        </StackPanel>
+
+        <GroupBox Header="読み仮名辞書 (AITalk の単語辞書に未登録の読みを、ここで指定した読みに置き換えて合成します)" Padding="8" Margin="0,8,0,0" Style="{StaticResource VrGroupBoxStyle}">
+            <DockPanel>
+                <DataGrid x:Name="EntriesGrid"
+                          ItemsSource="{Binding ReadingEntries}"
+                          AutoGenerateColumns="False"
+                          CanUserAddRows="False"
+                          CanUserDeleteRows="False"
+                          HeadersVisibility="Column"
+                          GridLinesVisibility="Horizontal"
+                          AlternatingRowBackground="#F4F6F9"
+                          RowHeaderWidth="0"
+                          CellEditEnding="EntriesGrid_CellEditEnding"
+                          SelectionMode="Single">
+                    <DataGrid.Columns>
+                        <DataGridTextColumn Header="表記 (Surface)"
+                                            Binding="{Binding Surface, UpdateSourceTrigger=PropertyChanged}"
+                                            Width="*"/>
+                        <DataGridTextColumn Header="読み (カタカナ)"
+                                            Binding="{Binding Reading, UpdateSourceTrigger=PropertyChanged}"
+                                            Width="*"/>
+                        <DataGridCheckBoxColumn Header="有効"
+                                                Binding="{Binding Enabled, UpdateSourceTrigger=PropertyChanged}"
+                                                Width="60"/>
+                    </DataGrid.Columns>
+                </DataGrid>
+            </DockPanel>
+        </GroupBox>
+    </DockPanel>
+</UserControl>

@@ -1,0 +1,14 @@
+<Project>
+	<!--
+		YMM4 のインストール先はハードコードせず、環境変数 YMM4_DIR から取得する。
+		例 (新しいシェル以降に反映):
+		  setx YMM4_DIR "C:\YukkuriMovieMaker_v4\"
+	-->
+	<PropertyGroup>
+		<YMM4DirPath Condition="'$(YMM4_DIR)' != ''">$(YMM4_DIR)</YMM4DirPath>
+	</PropertyGroup>
+
+	<Target Name="RequireYMM4Dir" BeforeTargets="Build;ResolveReferences" Condition="'$(YMM4DirPath)' == '' And '$(RequiresYMM4)' == 'true'">
+		<Error Text="環境変数 YMM4_DIR が未設定です。YMM4 のインストール先 (末尾に \ を含む) を設定してからビルドしてください (例: setx YMM4_DIR C:\YukkuriMovieMaker_v4\)" />
+	</Target>
+</Project>

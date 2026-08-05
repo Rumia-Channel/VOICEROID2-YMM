@@ -1,0 +1,48 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+	<PropertyGroup>
+		<TargetFramework>net10.0-windows10.0.19041.0</TargetFramework>
+		<ImplicitUsings>enable</ImplicitUsings>
+		<Nullable>enable</Nullable>
+		<UseWPF>true</UseWPF>
+
+		<RootNamespace>Voiceroid2Ymm</RootNamespace>
+		<AssemblyName>VOICEROID2-YMM</AssemblyName>
+		<Product>VOICEROID2-YMM</Product>
+		<Description>YMM4 voice synthesis plugin for VOICEROID2 (AITalk aitalked.dll)</Description>
+
+		<!--YMM4 参照が必要なプロジェクト (Directory.Build.props のエラーチェック用)-->
+		<RequiresYMM4>true</RequiresYMM4>
+
+		<!--Pdb内にソースコードのフルパスを含めない-->
+		<RepoRoot>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)'))</RepoRoot>
+		<PathMap>$(RepoRoot)=.</PathMap>
+	</PropertyGroup>
+
+	<!--
+		tests/ は SDK 検証用の別プロジェクト。bin/obj は WPF 一時プロジェクトの生成物を拾わないために除外する。
+	-->
+	<ItemGroup>
+		<Compile Remove="tests\**;bin\**;obj\**" />
+		<None Remove="tests\**;bin\**;obj\**" />
+		<Page Remove="tests\**;bin\**;obj\**" />
+		<ApplicationDefinition Remove="tests\**;bin\**;obj\**" />
+		<EmbeddedResource Remove="tests\**;bin\**;obj\**" />
+		<Resource Remove="tests\**;bin\**;obj\**" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<Reference Include="YukkuriMovieMaker.Controls">
+			<HintPath>$(YMM4DirPath)YukkuriMovieMaker.Controls.dll</HintPath>
+		</Reference>
+		<Reference Include="YukkuriMovieMaker.Plugin">
+			<HintPath>$(YMM4DirPath)YukkuriMovieMaker.Plugin.dll</HintPath>
+		</Reference>
+	</ItemGroup>
+
+	<!--ビルド後にYMM4のプラグインフォルダにdllをコピーする-->
+	<Target Name="PostBuild" AfterTargets="PostBuildEvent">
+		<Exec Command="mkdir &quot;$(YMM4DirPath)user\plugin\$(ProjectName)&quot; &gt; NUL 2&gt;&amp;1&#xD;&#xA;copy /Y &quot;$(TargetPath)&quot; &quot;$(YMM4DirPath)user\plugin\$(ProjectName)\&quot;" />
+	</Target>
+
+</Project>

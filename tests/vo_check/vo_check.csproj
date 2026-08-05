@@ -1,0 +1,32 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+	<PropertyGroup>
+		<OutputType>Exe</OutputType>
+		<TargetFramework>net10.0-windows10.0.19041.0</TargetFramework>
+		<Nullable>enable</Nullable>
+		<ImplicitUsings>enable</ImplicitUsings>
+		<RootNamespace>VoCheck</RootNamespace>
+		<AssemblyName>vo_check</AssemblyName>
+	</PropertyGroup>
+
+	<!--
+		AITalk SDK ソースを Link して vo_check.exe に直接コンパイルする。
+		YMM4 依存 (YukkuriMovieMaker.*) は AITalk 層には無いので、YMM4 なしで動く。
+	-->
+	<ItemGroup>
+		<Compile Include="..\..\Voice\AITalk\**\*.cs" LinkBase="AITalk" />
+		<Compile Include="..\..\Voice\GlobalUsings.cs" Link="GlobalUsings.cs" />
+	</ItemGroup>
+
+	<!--
+		フェイク aitalked.dll (テストダブル) をビルド出力へコピーする。
+		先に tests\fake_aitalked\build.cmd でビルドしておくこと。
+	-->
+	<ItemGroup>
+		<None Include="..\fake_aitalked\build\aitalked.dll" Condition="Exists('..\fake_aitalked\build\aitalked.dll')">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+			<Link>aitalked.dll</Link>
+		</None>
+	</ItemGroup>
+
+</Project>
