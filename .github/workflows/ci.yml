@@ -1,0 +1,52 @@
+name: CI
+
+on:
+  push:
+    branches: [develop, main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      # フェイク aitalked.dll (テストダブル) をビルド (vswhere で MSVC を検出)
+      - name: Build fake aitalked.dll
+        run: tests\fake_aitalked\build.cmd
+        shell: cmd
+
+      # AITalk 層の検証 (YMM4 / VOICEROID2 不要)
+      - name: Run engine tests (vo_check)
+        run: dotnet run --project tests\vo_check -c Release
+
+      # YMM4 本体の公式配布 ZIP から参照 DLL を取得する
+      - name: Download YMM4 reference assemblies
+        run: |
+          mkdir ymm4_ref
+          curl.exe -L -o ymm4.zip "https://object-storage.tyo1.conoha.io/v1/nc_4fac3ef0e6d843249e0ab2f1fc3e8f85/public/YukkuriMovieMaker_v4.zip"
+          tar -xf ymm4.zip -C ymm4_ref
+        shell: cmd
+
+      - name: Locate YMM4 directory
+        shell: powershell
+        run: |
+          $dll = Get-ChildItem -Path ymm4_ref -Recurse -Filter YukkuriMovieMaker.Plugin.dll | Select-Object -First 1
+          if (-not $dll) { throw "YukkuriMovieMaker.Plugin.dll not found in ymm4_ref" }
+          "YMM4_DIR=$($dll.DirectoryName)\" | Out-File -FilePath $env:GITHUB_ENV -Append
+
+      # プラグインをビルド。AuthSeed は GitHub Secret (VOICEROID2_AUTH_SEED) で
+      # 指定すると DLL に埋め込まれる。未設定なら埋め込まずにビルドする
+      # (実行時は環境変数 VOICEROID2_AUTH_SEED が必要)。
+      - name: Build plugin
+        run: dotnet build -c Release -p:AuthSeed="${{ secrets.VOICEROID2_AUTH_SEED }}"
+
+      - name: Upload plugin artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: VOICEROID2-YMM
+          path: bin\Release\net10.0-windows10.0.19041.0\VOICEROID2-YMM.dll

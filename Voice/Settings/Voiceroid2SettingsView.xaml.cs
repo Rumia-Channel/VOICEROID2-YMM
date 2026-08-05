@@ -49,9 +49,7 @@ namespace Voiceroid2Ymm.Voice.Settings
                 UserDirText.Foreground = System.Windows.Media.Brushes.OrangeRed;
             }
 
-            SeedStatusText.Text = AITalkInstallation.EnvValue(AITalkInstallation.EnvAuthSeed) is null
-                ? $"未設定 (環境変数 {AITalkInstallation.EnvAuthSeed})"
-                : $"設定済み (環境変数 {AITalkInstallation.EnvAuthSeed})";
+            SeedStatusText.Text = AITalkInstallation.GetAuthSeedStatus();
             SeedStatusText.Foreground = System.Windows.Media.Brushes.Green;
 
             if (DataContext is Voiceroid2VoiceSettings settings)

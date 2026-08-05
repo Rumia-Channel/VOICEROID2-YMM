@@ -69,19 +69,34 @@ internal static class AITalkInstallation
     }
 
     /// <summary>
-    /// 認証シード値を環境変数 <see cref="EnvAuthSeed"/> から取得する。
-    /// 未設定の場合は例外 (値はリポジトリの code.jpg に記載)。
+    /// 認証シード値を解決する。
+    /// 優先順: 実行時環境変数 <see cref="EnvAuthSeed"/> &gt; ビルド時埋め込み
+    /// (<see cref="BuildTimeAuthSeed"/>, csproj の AuthSeed プロパティで生成)。
+    /// どちらも無い場合は例外 (値はリポジトリの code.jpg に記載)。
     /// </summary>
     public static string GetAuthSeed()
     {
         string? seed = EnvValue(EnvAuthSeed);
         if (string.IsNullOrWhiteSpace(seed))
+            seed = BuildTimeAuthSeed.Value;
+        if (string.IsNullOrWhiteSpace(seed))
         {
             throw new AITalkException(
-                $"環境変数 {EnvAuthSeed} が設定されていません。\n" +
-                $"シード値はリポジトリの code.jpg に記載されています。システム環境変数として設定し、YMM4 を再起動してください。");
+                $"認証コードが設定されていません。\n" +
+                $"実行時環境変数 {EnvAuthSeed} を設定するか、ビルド時に -p:AuthSeed=... で埋め込んでください。\n" +
+                $"シード値はリポジトリの code.jpg に記載されています。");
         }
         return seed;
+    }
+
+    /// <summary>設定画面用の認証コード状態 (値そのものは返さない)。</summary>
+    public static string GetAuthSeedStatus()
+    {
+        if (EnvValue(EnvAuthSeed) is not null)
+            return $"環境変数 {EnvAuthSeed} に設定済み";
+        if (!string.IsNullOrWhiteSpace(BuildTimeAuthSeed.Value))
+            return $"ビルド時に埋め込み済み (実行時環境変数は未設定)";
+        return $"未設定 (環境変数 {EnvAuthSeed} またはビルド時埋め込みが必要)";
     }
 
     /// <summary>

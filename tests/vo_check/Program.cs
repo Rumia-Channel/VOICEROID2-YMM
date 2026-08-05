@@ -93,6 +93,63 @@ static bool CheckWav(string path, int expectedSamples)
     }
 }
 
+/// <summary>ANSI バイト列を文字列へ (CodePages 依存なし)。</summary>
+static string AnsiToString(byte[] bytes)
+{
+    if (bytes.Length == 0) return string.Empty;
+    var handle = GCHandle.Alloc(bytes, GCHandleType.Pinned);
+    try
+    {
+        return Marshal.PtrToStringAnsi(handle.AddrOfPinnedObject(), bytes.Length) ?? string.Empty;
+    }
+    finally
+    {
+        handle.Free();
+    }
+}
+
+// ---------------- 実機モード (VOICEROID2 がインストールされた環境での検証) ----------------
+// 使い方: vo_check --real <声質名>
+// 環境変数 VOICEROID2_AUTH_SEED にシード値を設定して実行する (フェイクは使わない)。
+if (args.Length >= 2 && args[0] == "--real")
+{
+    string realVoice = args[1];
+    try
+    {
+        Console.WriteLine($"install: {AITalkInstallation.DetectInstallDirectory()}");
+        Console.WriteLine($"voices: [{string.Join(", ", AITalkInstallation.EnumerateVoiceNames())}]");
+        AITalkEngine.EnsureOpened(null, null, realVoice);
+        Console.WriteLine("engine opened (real)");
+
+        // ポーズ値 (pauseSentence >= pauseLong が実機 SDK の要件) を設定できるか確認
+        AITalkEngine.ApplySpeakerParams(new AITalkSpeakerParams(Volume: 1.0f, Speed: 1.0f, Pitch: 1.0f, Range: 1.0f, PauseSentence: 500));
+        Console.WriteLine("speaker params applied (real)");
+
+        byte[] kana = AITalkEngine.TextToKana("こんにちは、ゆっくりしていってね。");
+        Console.WriteLine($"kana ({kana.Length} bytes): {AnsiToString(kana)}");
+
+        var pcm = AITalkEngine.KanaToSpeech(
+            kana,
+            new AITalkSpeakerParams(Volume: 1.0f, Speed: 1.0f, Pitch: 1.0f, Range: 1.0f, PauseSentence: 500));
+        Console.WriteLine($"pcm samples: {pcm.Length} ({(double)pcm.Length / 44100:F2} s)");
+        Check(pcm.Length > 1000, "real synthesis produced audio");
+
+        string wavPath = Path.Combine(Path.GetTempPath(), "vo2_real_out.wav");
+        WavFile.WritePcm16Mono(wavPath, pcm);
+        Check(CheckWav(wavPath, pcm.Length), "real wav structure");
+        Console.WriteLine($"wav: {wavPath}");
+
+        AITalkEngine.Close();
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine("REAL ERROR: " + ex);
+        failures++;
+    }
+    Console.WriteLine(failures == 0 ? "REAL PASS" : "REAL FAIL");
+    return failures == 0 ? 0 : 1;
+}
+
 Console.WriteLine($"ACP (ANSI code page) = {CultureInfo.CurrentCulture.TextInfo.ANSICodePage}");
 
 // ---------------- フェイク環境の構築 ----------------
@@ -135,20 +192,32 @@ try
     // 実マシンのレジストリ由来のデータ (例: tamiyasu_44) が混ざり得るため包含で判定する
     Check(voices.Contains("akari_44"), $"enumerate voices contains akari_44: [{string.Join(",", voices)}]");
 
-    // ---------------- シード未設定時エラー ----------------
-    Environment.SetEnvironmentVariable(AITalkInstallation.EnvAuthSeed, null);
+    // ---------------- シード解決 (埋め込みの有無で分岐) ----------------
+    // 既定ビルド (埋め込みなし): env 未設定ならエラーになることを確認
+    // -p:AuthSeed=... ビルド: env 未設定でも埋め込み値が使われることを確認
     bool threw = false;
-    try
+    if (string.IsNullOrWhiteSpace(BuildTimeAuthSeed.Value))
     {
-        AITalkEngine.EnsureOpened(null, null, "akari_44");
+        Environment.SetEnvironmentVariable(AITalkInstallation.EnvAuthSeed, null);
+        threw = false;
+        try
+        {
+            AITalkEngine.EnsureOpened(null, null, "akari_44");
+        }
+        catch (AITalkException ex)
+        {
+            threw = ex.Message.Contains("VOICEROID2_AUTH_SEED");
+        }
+        Check(threw, "missing seed throws with env var name");
+        Check(!AITalkEngine.IsOpened, "engine stays closed after failed open");
+        Environment.SetEnvironmentVariable(AITalkInstallation.EnvAuthSeed, "FAKE_SEED_TEST_123");
     }
-    catch (AITalkException ex)
+    else
     {
-        threw = ex.Message.Contains("VOICEROID2_AUTH_SEED");
+        Environment.SetEnvironmentVariable(AITalkInstallation.EnvAuthSeed, null);
+        Check(AITalkInstallation.GetAuthSeed() == BuildTimeAuthSeed.Value, "embedded seed used when env unset");
+        Environment.SetEnvironmentVariable(AITalkInstallation.EnvAuthSeed, "FAKE_SEED_TEST_123");
     }
-    Check(threw, "missing seed throws with env var name");
-    Check(!AITalkEngine.IsOpened, "engine stays closed after failed open");
-    Environment.SetEnvironmentVariable(AITalkInstallation.EnvAuthSeed, "FAKE_SEED_TEST_123");
 
     // ---------------- インストール未検出時エラー ----------------
     Environment.SetEnvironmentVariable(AITalkInstallation.EnvInstallDir, Path.Combine(Path.GetTempPath(), "vo2_missing_" + Guid.NewGuid().ToString("N")));
@@ -195,7 +264,7 @@ try
 
     var pcm = AITalkEngine.KanaToSpeech(
         kana,
-        new AITalkSpeakerParams(Volume: 1.5f, Speed: 1.2f, Pitch: 0.1f, Range: 1.3f, PauseSentence: 400));
+        new AITalkSpeakerParams(Volume: 1.5f, Speed: 1.2f, Pitch: 1.1f, Range: 1.3f, PauseSentence: 400));
     Check(pcm.Length == 4410, $"pcm sample count ({pcm.Length})");
     bool inRange = pcm.All(s => s >= -10000 && s <= 10000);
     Check(inRange, "pcm samples within ramp range");
@@ -210,7 +279,7 @@ try
 
     // 声質切替 (同じデータディレクトリ内) と再合成
     AITalkEngine.LoadVoice("akari_44", null);
-    var pcm2 = AITalkEngine.KanaToSpeech(kana, new AITalkSpeakerParams(Volume: 1.0f, Speed: 1.0f, Pitch: 0f, Range: 1.0f, PauseSentence: 300));
+    var pcm2 = AITalkEngine.KanaToSpeech(kana, new AITalkSpeakerParams(Volume: 1.0f, Speed: 1.0f, Pitch: 1.0f, Range: 1.0f, PauseSentence: 300));
     Check(pcm2.Length == 4410, "second synthesis after voice reload");
 
     // ---------------- 構造体レイアウト整合 (フェイクのログと比較) ----------------
@@ -239,7 +308,7 @@ try
     Check(log.Contains("closespeech"), "log: closespeech");
     Check(log.Contains("speed=1.2"), "log: speaker speed applied");
     Check(log.Contains("volume=1.5"), "log: speaker volume applied");
-    Check(log.Contains("pitch=0.1"), "log: speaker pitch applied");
+    Check(log.Contains("pitch=1.1"), "log: speaker pitch applied");
     Check(log.Contains("range=1.3"), "log: speaker range applied");
     Check(log.Contains("pauseSentence=400"), "log: speaker pauseSentence applied");
     Check(log.Contains("callbacks=111"), "log: all three callbacks set");

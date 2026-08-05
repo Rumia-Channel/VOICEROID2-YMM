@@ -193,12 +193,39 @@ internal static class AITalkEngine
         param.procRawBuf = Marshal.GetFunctionPointerForDelegate(procRawBufDelegate);
         param.procEventTts = Marshal.GetFunctionPointerForDelegate(procEventTtsDelegate);
         param.extendFormat = ExtendFormat.JeitaRuby | ExtendFormat.AutoBookmark;
+
+        // どのフィールドで拒否されるかを特定できるよう、フィールドごとに設定する
+        // (実機 SDK は話者パラメータの範囲検証を行い、不正値で InvalidArgument を返す)
+        AITalkResultCode result = fnSetParam!(ref param);
+        if (result != AITalkResultCode.Success)
+            throw new AITalkException("音声パラメータの設定に失敗しました (コールバックのみ)", result);
+
         param.Speaker.volume = p.Volume;
+        result = fnSetParam!(ref param);
+        if (result != AITalkResultCode.Success)
+            throw new AITalkException($"音声パラメータの設定に失敗しました (volume={p.Volume})", result);
+
         param.Speaker.speed = p.Speed;
+        result = fnSetParam!(ref param);
+        if (result != AITalkResultCode.Success)
+            throw new AITalkException($"音声パラメータの設定に失敗しました (speed={p.Speed})", result);
+
         param.Speaker.pitch = p.Pitch;
+        result = fnSetParam!(ref param);
+        if (result != AITalkResultCode.Success)
+            throw new AITalkException($"音声パラメータの設定に失敗しました (pitch={p.Pitch})", result);
+
         param.Speaker.range = p.Range;
-        param.Speaker.pauseSentence = p.PauseSentence;
-        ThrowIfFailed(fnSetParam!(ref param), "音声パラメータの設定に失敗しました");
+        result = fnSetParam!(ref param);
+        if (result != AITalkResultCode.Success)
+            throw new AITalkException($"音声パラメータの設定に失敗しました (range={p.Range})", result);
+
+        // 実機 SDK は pauseSentence >= pauseLong を要求する (未満は InvalidArgument)。
+        // エンジン既定の pauseLong 未満が指定された場合は pauseLong に切り上げる。
+        param.Speaker.pauseSentence = Math.Max(p.PauseSentence, param.Speaker.pauseLong);
+        result = fnSetParam!(ref param);
+        if (result != AITalkResultCode.Success)
+            throw new AITalkException($"音声パラメータの設定に失敗しました (pauseSentence={p.PauseSentence})", result);
     }
 
     static bool WaitForJob(int timeoutMs)
@@ -542,6 +569,10 @@ internal static class AITalkEngine
             throw new AITalkException("音声パラメータのサイズ取得に失敗しました", result);
 
         var bytes = new byte[size];
+        // aitalk_wrapper と同じく、2 回目の GetParam 前に構造体先頭の size フィールド
+        // (バッファ容量) を設定する。実機 SDK はこれを参照するため、0 のままだと
+        // AITALKERR_INSUFFICIENT が返る。
+        BitConverter.GetBytes(size).CopyTo(bytes, 0);
         var handle = GCHandle.Alloc(bytes, GCHandleType.Pinned);
         try
         {

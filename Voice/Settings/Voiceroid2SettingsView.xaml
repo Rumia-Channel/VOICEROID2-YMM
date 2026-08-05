@@ -102,7 +102,7 @@
                             Style="{StaticResource VrButtonStyle}"
                             Click="UpdateVoicesButton_Click"/>
                 </StackPanel>
-                <TextBlock Text="※ パスやシード値は設定に保存されません。環境変数で指定します: VOICEROID2_YMM_INSTALL_DIR (インストール先の上書き)、VOICEROID2_YMM_USER_DIR (ユーザーデータの上書き)、VOICEROID2_AUTH_SEED (認証シード。値はリポジトリの code.jpg を参照)"
+                <TextBlock Text="※ パスやシード値は設定に保存されません。環境変数で指定します: VOICEROID2_YMM_INSTALL_DIR (インストール先の上書き)、VOICEROID2_YMM_USER_DIR (ユーザーデータの上書き)、VOICEROID2_AUTH_SEED (認証シード。値はリポジトリの code.jpg を参照。ビルド時に -p:AuthSeed=... で埋め込むこともできます)"
                            Opacity="0.6"
                            FontSize="11"
                            TextWrapping="Wrap"

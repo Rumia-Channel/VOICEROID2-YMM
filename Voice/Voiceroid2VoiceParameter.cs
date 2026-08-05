@@ -26,13 +26,13 @@ public class Voiceroid2VoiceParameter : VoiceParameterBase
     [DefaultValue(1.0)]
     public double Speed { get => speed; set => Set(ref speed, value); }
 
-    double pitch;
+    double pitch = 1.0;
 
-    /// <summary>ピッチ。AITalk 既定は 0.0。</summary>
-    [Display(Name = "ピッチ", Description = "声の高さ (-0.5 - 0.5)")]
-    [TextBoxSlider("F2", "", -0.5, 0.5, Delay = -1)]
-    [Range(-0.5, 0.5)]
-    [DefaultValue(0.0)]
+    /// <summary>ピッチ (声の高さの倍率)。AITalk の有効範囲は 0.5 - 2.0、既定 1.0。</summary>
+    [Display(Name = "ピッチ", Description = "声の高さの倍率 (0.5 - 2.0, 1.0 が標準)")]
+    [TextBoxSlider("F2", "", 0.5, 2.0, Delay = -1)]
+    [Range(0.5, 2.0)]
+    [DefaultValue(1.0)]
     public double Pitch { get => pitch; set => Set(ref pitch, value); }
 
     double range = 1.0;
@@ -53,12 +53,12 @@ public class Voiceroid2VoiceParameter : VoiceParameterBase
     [DefaultValue(1.0)]
     public double Volume { get => volume; set => Set(ref volume, value); }
 
-    double pauseSentence = 300.0;
+    double pauseSentence = 500.0;
 
-    /// <summary>文間ポーズ [ms]。AITalk の pauseSentence に対応。</summary>
-    [Display(Name = "ポーズ (文間)", Description = "文と文の間のポーズ長 (0 - 2000 ms)")]
+    /// <summary>文間ポーズ [ms]。エンジンの pauseLong 未満は pauseLong に切り上げられる。</summary>
+    [Display(Name = "ポーズ (文間)", Description = "文と文の間のポーズ長 (0 - 2000 ms。エンジンの既定 pauseLong 未満は切り上げ)")]
     [TextBoxSlider("F0", "ms", 0.0, 2000.0, Delay = -1)]
     [Range(0.0, 2000.0)]
-    [DefaultValue(300.0)]
+    [DefaultValue(500.0)]
     public double PauseSentence { get => pauseSentence; set => Set(ref pauseSentence, value); }
 }

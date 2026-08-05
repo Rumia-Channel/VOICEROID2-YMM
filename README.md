@@ -67,8 +67,34 @@ dotnet build -c Release
 ```
 
 ビルド成果物の `VOICEROID2-YMM.dll` は YMM4 の `user\plugin\VOICEROID2-YMM\` に自動コピーされる
-(`<PostBuild>` ターゲット)。`dotnet build` を実行するシェルに `YMM4_DIR` が設定されていれば
-`setx` は不要です。
+(`<PostBuild>` ターゲット。YMM4 起動中はロックのためコピーをスキップし警告を出します)。
+`dotnet build` を実行するシェルに `YMM4_DIR` が設定されていれば `setx` は不要です。
+
+### 認証コードのビルド時埋め込み
+
+ビルド時に `-p:AuthSeed=<値>` を渡すと、認証コードが DLL に埋め込まれます
+(実行時は環境変数 `VOICEROID2_AUTH_SEED` が埋め込み値より優先されます)。
+
+```bat
+dotnet build -c Release -p:AuthSeed=<シード値は code.jpg を参照>
+```
+
+- 未指定なら何も埋め込まず、実行時の環境変数のみで動作します。
+- 埋め込み値はビルド環境の環境変数 `VOICEROID2_AUTH_SEED` が自動で使われます
+  (テストプロジェクトは除く。テストは決定性のため既定では埋め込みません)。
+- 埋め込んだ DLL を配布する場合は認証コードが含まれる点に注意してください。
+
+## GitHub Actions (CI)
+
+`.github/workflows/ci.yml` が以下を実行します (Windows ランナー):
+
+1. フェイク `aitalked.dll` をビルドし、`tests\vo_check` のエンジン検証を実行
+   (YMM4 / VOICEROID2 不要)。
+2. YMM4 公式配布 ZIP をダウンロードして参照 DLL を取得し、プラグインをビルド。
+3. ビルドした DLL を成果物としてアップロード。
+
+リポジトリの Settings > Secrets に `VOICEROID2_AUTH_SEED` を登録すると、
+CI ビルドにも認証コードが埋め込まれます (未登録でもビルド自体は成功します)。
 
 ## 使い方 (YMM4)
 
@@ -101,6 +127,16 @@ dotnet run --project tests\vo_check -c Release
 フェイク `aitalked.dll` は AITalk SDK のふりをするテストダブルで、構造体レイアウト・
 呼び出し規約・コールバック・イベント駆動のジョブ完了・WAV 出力・環境変数駆動の検出を
 VOICEROID2 実機なしで検証します (x64)。
+
+### 実機モード (VOICEROID2 インストール環境)
+
+```bat
+set VOICEROID2_AUTH_SEED=<シード値は code.jpg を参照>
+dotnet run --project tests\vo_check -c Release -- --real tamiyasu_44
+```
+
+実際の VOICEROID2 に対して 読み変換 → 音声合成 → WAV 出力までを検証します
+(出力: `%TEMP%\vo2_real_out.wav`)。シード値は環境変数でのみ渡し、コードには含めません。
 
 ## 制限
 

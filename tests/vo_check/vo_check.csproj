@@ -19,6 +19,21 @@
 	</ItemGroup>
 
 	<!--
+		BuildTimeAuthSeed.g.cs を生成してコンパイルに含める。
+		テストは決定性を保つため既定では埋め込まない (-p:AuthSeed=... でのみ埋め込める)。
+	-->
+	<Target Name="GenerateAuthSeed" BeforeTargets="CoreCompile">
+		<WriteLinesToFile File="$(IntermediateOutputPath)BuildTimeAuthSeed.g.cs" Overwrite="true"
+			Lines="namespace Voiceroid2Ymm.Voice.AITalk { internal static class BuildTimeAuthSeed { public const string Value = &quot;$(AuthSeed)&quot;%3B } }" />
+		<ItemGroup>
+			<FileWrites Include="$(IntermediateOutputPath)BuildTimeAuthSeed.g.cs" />
+		</ItemGroup>
+	</Target>
+	<ItemGroup>
+		<Compile Include="$(IntermediateOutputPath)BuildTimeAuthSeed.g.cs" />
+	</ItemGroup>
+
+	<!--
 		フェイク aitalked.dll (テストダブル) をビルド出力へコピーする。
 		先に tests\fake_aitalked\build.cmd でビルドしておくこと。
 	-->

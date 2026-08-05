@@ -175,6 +175,10 @@ __declspec(dllexport) AITalkResultCode AITalkAPI_GetParam(AITalk_TTtsParam *para
             *size = (uint32_t)sizeof(AITalk_TTtsParam);
         return AITALKERR_INSUFFICIENT;
     }
+    // 実機 SDK と同様、param->size フィールドをバッファ容量として扱う
+    // (0 のまま呼ぶと AITALKERR_INSUFFICIENT を返す)
+    if (param->size < (uint32_t)sizeof(AITalk_TTtsParam))
+        return AITALKERR_INSUFFICIENT;
     if (!g_hasParam)
     {
         memset(&g_param, 0, sizeof(g_param));

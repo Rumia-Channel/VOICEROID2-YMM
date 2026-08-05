@@ -31,6 +31,29 @@
 		<Resource Remove="tests\**;bin\**;obj\**" />
 	</ItemGroup>
 
+	<!--
+		ビルド時に認証コード (AITalk シード値) を DLL に埋め込む設定。
+		指定方法: -p:AuthSeed=... またはビルド時の環境変数 VOICEROID2_AUTH_SEED。
+		未指定なら何も埋め込まず、実行時に環境変数 VOICEROID2_AUTH_SEED から取得する
+		(実行時は環境変数が埋め込み値より優先される)。
+		値は英数字のみを想定している (code.jpg に記載のシード値)。
+	-->
+	<PropertyGroup>
+		<AuthSeed Condition="'$(AuthSeed)' == ''">$(VOICEROID2_AUTH_SEED)</AuthSeed>
+	</PropertyGroup>
+
+	<!-- BuildTimeAuthSeed.g.cs を obj に生成してコンパイルに含める (認証コードのビルド時埋め込み) -->
+	<Target Name="GenerateAuthSeed" BeforeTargets="CoreCompile">
+		<WriteLinesToFile File="$(IntermediateOutputPath)BuildTimeAuthSeed.g.cs" Overwrite="true"
+			Lines="namespace Voiceroid2Ymm.Voice.AITalk { internal static class BuildTimeAuthSeed { public const string Value = &quot;$(AuthSeed)&quot;%3B } }" />
+		<ItemGroup>
+			<FileWrites Include="$(IntermediateOutputPath)BuildTimeAuthSeed.g.cs" />
+		</ItemGroup>
+	</Target>
+	<ItemGroup>
+		<Compile Include="$(IntermediateOutputPath)BuildTimeAuthSeed.g.cs" />
+	</ItemGroup>
+
 	<ItemGroup>
 		<Reference Include="YukkuriMovieMaker.Controls">
 			<HintPath>$(YMM4DirPath)YukkuriMovieMaker.Controls.dll</HintPath>
