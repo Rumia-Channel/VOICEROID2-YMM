@@ -63,6 +63,15 @@ public partial class Voiceroid2AccentEditorWindow : Window
         e.Handled = true;
     }
 
+    /// <summary>アクセント核の位置で単語を 2 つのアクセント句へ分割する。</summary>
+    void SplitPhraseButton_Click(object sender, RoutedEventArgs e)
+    {
+        if ((sender as FrameworkElement)?.DataContext is not Voiceroid2WordViewModel wv)
+            return;
+        if (DataContext is Voiceroid2AccentEditorViewModel evm)
+            evm.SplitWordAtAccent(wv);
+    }
+
     /// <summary>読み入力欄が表示されたらフォーカスして全選択する。</summary>
     void ReadingTextBox_IsVisibleChanged(object sender, DependencyPropertyChangedEventArgs e)
     {

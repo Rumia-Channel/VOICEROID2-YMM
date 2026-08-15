@@ -109,4 +109,34 @@ public static class AccentEditKana
         }
         return sb.ToString();
     }
+
+    /// <summary>
+    /// アクセント核の位置で単語を 2 つのアクセント句へ分割した編集用かなを返す。
+    /// 句読点なしの単語かな (アクセントマークなし) と核位置 (1..count-1) を受け取り、
+    /// 「前半 (核の手前まで) + ' + 、 + 後半の先頭 + ' + 後半の残り」を組み立てる。
+    /// 前半は核を末尾に、後半は核を先頭に置くため、分割前の高低の流れが保たれる。
+    /// 例: ハシ (核 1) → ハ'、シ'
+    /// </summary>
+    public static string? SplitWordAtNucleus(string wordKana, int nucleus)
+    {
+        if (string.IsNullOrEmpty(wordKana) || nucleus <= 0) return null;
+
+        var morae = AquesTalkKana.SplitMorae(wordKana);
+        if (nucleus >= morae.Count) return null;
+
+        var sb = new StringBuilder();
+        for (int i = 0; i < nucleus; i++)
+            sb.Append(wordKana.Substring(morae[i].Start, morae[i].Length));
+        sb.Append(AquesTalkKana.AccentMark); // 前半: 核を末尾に (ここまで高)
+
+        sb.Append('、'); // 句読点ポーズで句を分ける
+
+        sb.Append(wordKana.Substring(morae[nucleus].Start, morae[nucleus].Length));
+        sb.Append(AquesTalkKana.AccentMark); // 後半: 核を先頭に (ここから低)
+
+        for (int i = nucleus + 1; i < morae.Count; i++)
+            sb.Append(wordKana.Substring(morae[i].Start, morae[i].Length));
+
+        return sb.ToString();
+    }
 }

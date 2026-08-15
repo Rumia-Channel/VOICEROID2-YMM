@@ -28,6 +28,9 @@ internal sealed class Voiceroid2MoraViewModel : INotifyPropertyChanged
     /// <summary>このモーラが高アクセントか (アクセント核の位置以下)。</summary>
     public bool IsAccentHigh => IsAccentEditable && word.AccentPosition >= Index;
 
+    /// <summary>高/低の表示ラベル (モーラの下に表示する)。</summary>
+    public string AccentLabel => IsAccentEditable ? (IsAccentHigh ? "高" : "低") : "－";
+
     public Voiceroid2MoraViewModel(Voiceroid2WordViewModel word, int index, string kana, bool editable)
     {
         this.word = word;
@@ -66,5 +69,8 @@ internal sealed class Voiceroid2MoraViewModel : INotifyPropertyChanged
 
     /// <summary>単語のアクセント位置変更を反映する (word から呼ばれる)。</summary>
     public void NotifyAccentChanged()
-        => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IsAccentHigh)));
+    {
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IsAccentHigh)));
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(AccentLabel)));
+    }
 }

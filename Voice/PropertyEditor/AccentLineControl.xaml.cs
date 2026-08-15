@@ -127,8 +127,38 @@ public partial class AccentLineControl : UserControl
         set => SetValue(FillBrushProperty, value);
     }
 
+    /// <summary>ユーザー指定のアクセント核位置 (モーラ境界インデックス、-1 = 指定なし)。</summary>
+    public static readonly DependencyProperty NucleusPositionProperty =
+        DependencyProperty.Register(
+            nameof(NucleusPosition),
+            typeof(int),
+            typeof(AccentLineControl),
+            new PropertyMetadata(-1, OnVisualPropertyChanged));
+
+    public int NucleusPosition
+    {
+        get => (int)GetValue(NucleusPositionProperty);
+        set => SetValue(NucleusPositionProperty, value);
+    }
+
+    /// <summary>エンジン既定のアクセント核位置 (解除中の破線マーカー表示用)。</summary>
+    public static readonly DependencyProperty DefaultNucleusPositionProperty =
+        DependencyProperty.Register(
+            nameof(DefaultNucleusPosition),
+            typeof(int),
+            typeof(AccentLineControl),
+            new PropertyMetadata(-1, OnVisualPropertyChanged));
+
+    public int DefaultNucleusPosition
+    {
+        get => (int)GetValue(DefaultNucleusPositionProperty);
+        set => SetValue(DefaultNucleusPositionProperty, value);
+    }
+
     int _dragIndex = -1;
     bool _dragMoved;
+    bool _draggingNucleus;
+    bool _nucleusDragMoved;
     Point _pointerDownPos;
 
     public AccentLineControl()
@@ -260,12 +290,33 @@ public partial class AccentLineControl : UserControl
         return n;
     }
 
+    /// <summary>核マーカー (▼) の X 座標。マーカーが無ければ -1。</summary>
+    double GetNucleusStepX()
+    {
+        int nucleus = NucleusPosition >= 0 ? NucleusPosition : DefaultNucleusPosition;
+        if (nucleus < 0) return -1.0;
+        return nucleus * ColumnWidth;
+    }
+
     void OnMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
     {
         var items = ItemsSource?.Cast<Voiceroid2MoraViewModel>().ToList();
         if (items is null || items.Count == 0) return;
 
         Point p = e.GetPosition(this);
+
+        // 核マーカー (▼) 付近なら、核そのものを左右にドラッグするモードへ入る。
+        double stepX = GetNucleusStepX();
+        if (stepX >= 0 && Math.Abs(p.X - stepX) <= ColumnWidth * 0.45)
+        {
+            _draggingNucleus = true;
+            _nucleusDragMoved = false;
+            _pointerDownPos = p;
+            CaptureMouse();
+            e.Handled = true;
+            return;
+        }
+
         int index = NearestIndex(p.X, items.Count);
         if (index < 0 || !items[index].IsAccentEditable) return;
 
@@ -278,6 +329,35 @@ public partial class AccentLineControl : UserControl
 
     void OnMouseMove(object sender, MouseEventArgs e)
     {
+        if (_draggingNucleus)
+        {
+            if (e.LeftButton != MouseButtonState.Pressed)
+            {
+                ReleaseDrag();
+                return;
+            }
+
+            var items = ItemsSource?.Cast<Voiceroid2MoraViewModel>().ToList();
+            if (items is null || items.Count == 0) return;
+
+            Point p = e.GetPosition(this);
+            if (Math.Abs(p.X - _pointerDownPos.X) > 2.0 || Math.Abs(p.Y - _pointerDownPos.Y) > 2.0)
+                _nucleusDragMoved = true;
+
+            if (DataContext is Voiceroid2WordViewModel wordVm)
+            {
+                double columnWidth = ColumnWidth;
+                int boundary = columnWidth > 0
+                    ? (int)Math.Round(p.X / columnWidth, MidpointRounding.AwayFromZero)
+                    : 0;
+                if (boundary < 0) boundary = 0;
+                if (boundary > items.Count) boundary = items.Count;
+                wordVm.MoveNucleusToBoundary(boundary);
+            }
+            e.Handled = true;
+            return;
+        }
+
         if (_dragIndex < 0) return;
         if (e.LeftButton != MouseButtonState.Pressed)
         {
@@ -285,8 +365,8 @@ public partial class AccentLineControl : UserControl
             return;
         }
 
-        Point p = e.GetPosition(this);
-        if (Math.Abs(p.X - _pointerDownPos.X) > 2.0 || Math.Abs(p.Y - _pointerDownPos.Y) > 2.0)
+        Point movePos = e.GetPosition(this);
+        if (Math.Abs(movePos.X - _pointerDownPos.X) > 2.0 || Math.Abs(movePos.Y - _pointerDownPos.Y) > 2.0)
             _dragMoved = true;
 
         // ドラッグ中は縦位置に応じてアクセント核をライブ移動する (上=高、下=低)。
@@ -296,7 +376,7 @@ public partial class AccentLineControl : UserControl
             if (items is null || _dragIndex >= items.Count) return;
 
             var mora = items[_dragIndex];
-            double n = NormalizedFromY(p.Y, ActualHeight > 0 ? ActualHeight : 120.0);
+            double n = NormalizedFromY(movePos.Y, ActualHeight > 0 ? ActualHeight : 120.0);
             if (n >= 0.5) mora.SetAccentHigh();
             else mora.SetAccentLow();
         }
@@ -305,6 +385,21 @@ public partial class AccentLineControl : UserControl
 
     void OnMouseLeftButtonUp(object sender, MouseButtonEventArgs e)
     {
+        if (_draggingNucleus)
+        {
+            // 移動がほぼ無ければマーカーのクリック。実線 = 解除、破線 = エンジン既定を確定。
+            if (!_nucleusDragMoved && DataContext is Voiceroid2WordViewModel wordVm)
+            {
+                if (NucleusPosition >= 0)
+                    wordVm.ClearAccent();
+                else
+                    wordVm.MoveNucleusToBoundary(DefaultNucleusPosition);
+            }
+            ReleaseDrag();
+            e.Handled = true;
+            return;
+        }
+
         if (_dragIndex < 0) return;
 
         // 移動がほぼ無ければクリックとみなし、アクセント核をトグルする。
@@ -321,7 +416,7 @@ public partial class AccentLineControl : UserControl
 
     void OnMouseLeave(object sender, MouseEventArgs e)
     {
-        if (_dragIndex >= 0 && e.LeftButton != MouseButtonState.Pressed)
+        if ((_dragIndex >= 0 || _draggingNucleus) && e.LeftButton != MouseButtonState.Pressed)
             ReleaseDrag();
     }
 
@@ -329,6 +424,8 @@ public partial class AccentLineControl : UserControl
     {
         _dragIndex = -1;
         _dragMoved = false;
+        _draggingNucleus = false;
+        _nucleusDragMoved = false;
         try { ReleaseMouseCapture(); }
         catch { /* ignore */ }
     }
@@ -391,6 +488,49 @@ public partial class AccentLineControl : UserControl
             Canvas.SetTop(ellipse, y - halfDot);
             AccentCanvas.Children.Add(ellipse);
         }
+
+        // アクセント核マーカー (▼)。ユーザー指定は実線、解除中 (エンジン既定) は破線。
+        DrawNucleusMarker(columnWidth, height);
+    }
+
+    /// <summary>
+    /// アクセント核 (下がり位置) のマーカーを描画する。
+    /// ユーザーが指定していれば実線の▼、解除中ならエンジン既定の位置に破線の▼を表示する。
+    /// </summary>
+    void DrawNucleusMarker(double columnWidth, double height)
+    {
+        int nucleus = NucleusPosition >= 0 ? NucleusPosition : DefaultNucleusPosition;
+        if (nucleus < 0) return;
+
+        double stepX = nucleus * columnWidth;
+        double size = Math.Min(11.0, columnWidth * 0.6);
+        double mid = (GetTop(height) + GetBottom(height)) / 2.0;
+        bool hollow = NucleusPosition < 0;
+
+        var figure = new PathFigure
+        {
+            StartPoint = new Point(stepX - size / 2.0, mid - size / 2.0),
+            IsClosed = true,
+            IsFilled = !hollow,
+        };
+        figure.Segments.Add(new LineSegment(new Point(stepX + size / 2.0, mid - size / 2.0), true));
+        figure.Segments.Add(new LineSegment(new Point(stepX, mid + size / 2.0), true));
+
+        var geometry = new PathGeometry();
+        geometry.Figures.Add(figure);
+
+        AccentCanvas.Children.Add(new System.Windows.Shapes.Path
+        {
+            Data = geometry,
+            Fill = hollow ? null : EditableDotBrush,
+            Stroke = hollow ? SpecialDotBrush : EditableDotBrush,
+            StrokeThickness = hollow ? 1.2 : 0.0,
+            StrokeDashArray = hollow ? new DoubleCollection { 2.0, 1.5 } : null,
+            IsHitTestVisible = false,
+            ToolTip = hollow
+                ? "エンジン既定のアクセント位置 (ここから下がる。クリックで確定、ドラッグで移動)"
+                : "アクセント核 (ここから下がる。左右にドラッグで移動、クリックで解除)",
+        });
     }
 
     void DrawSegment(List<Point> segment, double height)

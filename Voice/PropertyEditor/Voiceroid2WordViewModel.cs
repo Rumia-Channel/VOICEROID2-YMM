@@ -30,6 +30,25 @@ internal sealed class Voiceroid2WordViewModel : INotifyPropertyChanged
     /// <summary>ユーザーがアクセントを指定しているか。</summary>
     public bool HasUserAccent => AccentPosition >= 0;
 
+    /// <summary>
+    /// エンジン既定のアクセント核位置 (読み込んだ時点の値)。
+    /// アクセントを解除 (-1) したときに、エンジンが実際に下げる位置を破線マーカーで示すために使う。
+    /// </summary>
+    public int DefaultAccentPosition { get; }
+
+    /// <summary>表示・編集に使う有効な核位置 (ユーザー指定があればそれ、なければエンジン既定)。</summary>
+    public int EffectiveAccentPosition => AccentPosition >= 0 ? AccentPosition : DefaultAccentPosition;
+
+    /// <summary>アクセント核の位置で句を分割できるか (核が句の内部にある場合のみ)。</summary>
+    public bool CanSplitAccent
+    {
+        get
+        {
+            int k = EffectiveAccentPosition;
+            return k > 0 && k < Moras.Count;
+        }
+    }
+
     bool isEditingReading;
     string? readingText;
 
@@ -90,12 +109,25 @@ internal sealed class Voiceroid2WordViewModel : INotifyPropertyChanged
         Surface = string.IsNullOrWhiteSpace(source.Text) ? " " : source.Text;
         IsPunctuationWord = source.IsPunctuation;
         AccentPosition = source.AccentPosition;
+        DefaultAccentPosition = source.AccentPosition;
 
         Moras = new ObservableCollection<Voiceroid2MoraViewModel>();
         for (int i = 0; i < source.Moras.Count; i++)
         {
             Moras.Add(new Voiceroid2MoraViewModel(this, i, source.Moras[i], editable: true));
         }
+    }
+
+    /// <summary>アクセント核をモーラ境界へ直接移動する (核マーカーの左右ドラッグ用)。</summary>
+    public void MoveNucleusToBoundary(int boundary)
+    {
+        if (boundary >= Moras.Count)
+        {
+            // 最後のモーラより後ろ = 句内に下がりなし → エンジン既定へ
+            ClearAccent();
+            return;
+        }
+        SetAccent(boundary);
     }
 
     /// <summary>アクセント核を指定位置へ移動する。</summary>
@@ -130,6 +162,7 @@ internal sealed class Voiceroid2WordViewModel : INotifyPropertyChanged
             mora.NotifyAccentChanged();
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(AccentPosition)));
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(HasUserAccent)));
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(CanSplitAccent)));
     }
 
     void Notify([CallerMemberName] string? propertyName = null)

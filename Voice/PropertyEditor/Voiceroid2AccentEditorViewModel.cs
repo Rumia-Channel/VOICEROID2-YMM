@@ -129,6 +129,32 @@ internal sealed class Voiceroid2AccentEditorViewModel : IDisposable
         return pending.Length == 0 ? Task.CompletedTask : Task.WhenAll(pending);
     }
 
+    /// <summary>
+    /// 単語をアクセント核の位置で 2 つのアクセント句へ分割する (句読点ポーズ「、」を挿入)。
+    /// 分割後は各句に独立した核を持てるため、1 核モデルの制約を避けられる。
+    /// </summary>
+    public void SplitWordAtAccent(Voiceroid2WordViewModel wordVm)
+    {
+        if (wordVm is null) return;
+
+        int k = wordVm.EffectiveAccentPosition;
+        if (k <= 0 || k >= wordVm.Moras.Count) return;
+
+        string? newKana = AccentEditKana.SplitWordAtNucleus(wordVm.EditableReading, k);
+        if (string.IsNullOrEmpty(newKana)) return;
+
+        var parsed = AccentEditKana.Parse(newKana);
+        if (parsed.Count == 0) return;
+
+        int index = Words.IndexOf(wordVm);
+        if (index < 0) return;
+
+        var newVms = parsed.Select(w => new Voiceroid2WordViewModel(w)).ToList();
+        Words.RemoveAt(index);
+        for (int i = 0; i < newVms.Count; i++)
+            Words.Insert(index + i, newVms[i]);
+    }
+
     async Task ApplyWordReadingCoreAsync(Voiceroid2WordViewModel wordVm)
     {
         string reading = wordVm.ReadingText?.Trim() ?? string.Empty;

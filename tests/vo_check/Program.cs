@@ -396,6 +396,19 @@ try
 
     var accentWords4 = AccentEditKana.Parse(string.Empty);
     Check(accentWords4.Count == 0 && AccentEditKana.Build(accentWords4) == string.Empty, "accent parse: empty");
+
+    // ---------------- 句分割 (AccentEditKana.SplitWordAtNucleus) ----------------
+    Check(AccentEditKana.SplitWordAtNucleus("ハシ", 1) == "ハ'、シ'", "split: ハシ@1 → ハ'、シ'");
+    Check(AccentEditKana.SplitWordAtNucleus("コンニチワ", 2) == "コン'、ニ'チワ", "split: コンニチワ@2 → コン'、ニ'チワ");
+    Check(AccentEditKana.SplitWordAtNucleus("ハシ", 0) is null, "split: 核が先頭なら不可");
+    Check(AccentEditKana.SplitWordAtNucleus("ハシ", 2) is null, "split: 核が末尾なら不可");
+    var splitWords = AccentEditKana.Parse("コン'、ニ'チワ");
+    Check(splitWords.Count == 3
+        && splitWords[0].AccentPosition == 1 && splitWords[0].Moras.Count == 2
+        && splitWords[1].IsPunctuation
+        && splitWords[2].AccentPosition == 0 && splitWords[2].Moras.Count == 3,
+        "split: parse → 前半(核1) + 、 + 後半(核0)");
+    Check(AccentEditKana.Build(splitWords) == "コン'、ニ'チワ", "split: build round trip");
 }
 finally
 {

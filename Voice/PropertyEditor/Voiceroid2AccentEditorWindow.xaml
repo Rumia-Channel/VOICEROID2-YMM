@@ -161,6 +161,40 @@
             </Setter>
             <Setter Property="Foreground" Value="#FFFFFF"/>
         </Style>
+
+        <!-- カードヘッダー帯内の小ボタン -->
+        <Style x:Key="BandButtonStyle" TargetType="{x:Type Button}">
+            <Setter Property="Height" Value="20"/>
+            <Setter Property="Padding" Value="8,0"/>
+            <Setter Property="Margin" Value="0,0,4,0"/>
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="Foreground" Value="#565A62"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="{x:Type Button}">
+                        <Border x:Name="B"
+                                Background="#FFFFFF"
+                                BorderBrush="#D7DEE8"
+                                BorderThickness="1"
+                                CornerRadius="4"
+                                Padding="{TemplateBinding Padding}"
+                                SnapsToDevicePixels="True">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="B" Property="Background" Value="#F2F6FB"/>
+                                <Setter TargetName="B" Property="BorderBrush" Value="#BCD0E8"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Opacity" Value="0.45"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
     </Window.Resources>
 
     <Border Background="#F2F3F5" Padding="12">
@@ -181,7 +215,7 @@
                             Content="既定に戻す"
                             Command="{Binding ResetCommand}"/>
                 </StackPanel>
-                <TextBlock Text="アクセント編集 (モーラをクリック/ドラッグ: アクセント位置変更 / 単語の読みをクリック: よみがな編集)"
+                <TextBlock Text="アクセント編集 (▼を左右ドラッグ or モーラをクリック: 位置変更 / 読みをクリック: よみがな編集)"
                            FontWeight="SemiBold"
                            Foreground="#565A62"
                            VerticalAlignment="Center"/>
@@ -210,7 +244,16 @@
                                             Cursor="Hand"
                                             ToolTip="クリックで読みを編集"
                                             MouseLeftButtonDown="HeaderBand_MouseLeftButtonDown">
-                                        <TextBlock Text="{Binding Surface}" Style="{StaticResource HeaderTextBlockStyle}"/>
+                                        <DockPanel>
+                                            <Button DockPanel.Dock="Right"
+                                                    Style="{StaticResource BandButtonStyle}"
+                                                    Content="句分割"
+                                                    VerticalAlignment="Center"
+                                                    IsEnabled="{Binding CanSplitAccent}"
+                                                    ToolTip="アクセント核の位置で句を分割 (、を挿入)"
+                                                    Click="SplitPhraseButton_Click"/>
+                                            <TextBlock Text="{Binding Surface}" Style="{StaticResource HeaderTextBlockStyle}"/>
+                                        </DockPanel>
                                     </Border>
                                     <StackPanel Grid.Row="1" Margin="6,8,6,10"
                                                 Style="{StaticResource PunctuationCollapseStyle}">
@@ -228,12 +271,22 @@
                                             </ItemsControl.ItemsPanel>
                                             <ItemsControl.ItemTemplate>
                                                 <DataTemplate>
-                                                    <TextBlock Text="{Binding Kana}" Width="46"
-                                                               Style="{StaticResource MoraTextBlockStyle}"/>
+                                                    <StackPanel>
+                                                        <TextBlock Text="{Binding Kana}" Width="46"
+                                                                   Style="{StaticResource MoraTextBlockStyle}"/>
+                                                        <TextBlock Text="{Binding AccentLabel}"
+                                                                   Width="46"
+                                                                   FontSize="10"
+                                                                   HorizontalAlignment="Center"
+                                                                   Foreground="#6B7280"
+                                                                   Margin="0,2,0,0"/>
+                                                    </StackPanel>
                                                 </DataTemplate>
                                             </ItemsControl.ItemTemplate>
                                         </ItemsControl>
                                         <local:AccentLineControl ItemsSource="{Binding Moras}"
+                                                                 NucleusPosition="{Binding AccentPosition}"
+                                                                 DefaultNucleusPosition="{Binding DefaultAccentPosition}"
                                                                  ColumnWidth="46"
                                                                  Height="110"
                                                                  Margin="0,8,0,2"
