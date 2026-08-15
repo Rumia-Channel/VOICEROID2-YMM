@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
+using System.Text;
 using Voiceroid2Ymm.Voice.AITalk;
 
 namespace Voiceroid2Ymm.Voice.PropertyEditor;
@@ -28,6 +29,60 @@ internal sealed class Voiceroid2WordViewModel : INotifyPropertyChanged
 
     /// <summary>ユーザーがアクセントを指定しているか。</summary>
     public bool HasUserAccent => AccentPosition >= 0;
+
+    bool isEditingReading;
+    string? readingText;
+
+    /// <summary>読み編集モード中か (ヘッダー帯クリックで入る)。</summary>
+    public bool IsEditingReading
+    {
+        get => isEditingReading;
+        set
+        {
+            if (isEditingReading == value) return;
+            isEditingReading = value;
+            Notify();
+        }
+    }
+
+    /// <summary>読み編集欄のテキスト。未編集なら現在の読みを返す。</summary>
+    public string ReadingText
+    {
+        get => readingText ?? EditableReading;
+        set
+        {
+            if (readingText == value) return;
+            readingText = value;
+            Notify();
+        }
+    }
+
+    /// <summary>現在の読み (全モーラのかな連結、アクセントマークなし)。</summary>
+    public string EditableReading
+    {
+        get
+        {
+            var sb = new StringBuilder();
+            foreach (var mora in Moras)
+                sb.Append(mora.Kana == " " ? string.Empty : mora.Kana);
+            return sb.ToString();
+        }
+    }
+
+    /// <summary>読み編集モードへ入る (ヘッダー帯クリック時)。</summary>
+    public void BeginReadingEdit()
+    {
+        if (IsPunctuationWord || IsEditingReading) return;
+        readingText = EditableReading;
+        IsEditingReading = true;
+    }
+
+    /// <summary>読み編集をキャンセルして現在の読みへ戻す (Esc 時)。</summary>
+    public void CancelReadingEdit()
+    {
+        readingText = null;
+        IsEditingReading = false;
+    }
 
     public Voiceroid2WordViewModel(AccentEditKana.AccentWord source)
     {
@@ -76,4 +131,7 @@ internal sealed class Voiceroid2WordViewModel : INotifyPropertyChanged
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(AccentPosition)));
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(HasUserAccent)));
     }
+
+    void Notify([CallerMemberName] string? propertyName = null)
+        => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
 }

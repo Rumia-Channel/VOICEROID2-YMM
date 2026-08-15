@@ -1,4 +1,7 @@
 using System.Windows;
+using System.Windows.Controls;
+using System.Windows.Input;
+using System.Windows.Threading;
 
 namespace Voiceroid2Ymm.Voice.PropertyEditor;
 
@@ -30,11 +33,90 @@ public partial class Voiceroid2AccentEditorWindow : Window
         Closed += OnClosed;
     }
 
-    void OkButton_Click(object sender, RoutedEventArgs e)
+    async void OkButton_Click(object sender, RoutedEventArgs e)
     {
+        // 入力直後でまだ反映されていない読み編集を先に適用する
+        // (各適用は例外を握りつぶすため、この待機で例外は発生しない)
+        try
+        {
+            await vm.FlushPendingReadingAppliesAsync();
+        }
+        catch
+        {
+            // 適用失敗時はエディタの状態のまま確定させず、キャンセル扱いにしない
+        }
+
         vm.Commit();
         committed = true;
         Close();
+    }
+
+    /// <summary>ヘッダー帯をクリックして読み編集モードに入る (VOICEPEAK 準拠)。</summary>
+    void HeaderBand_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+    {
+        if (sender is not FrameworkElement fe || fe.DataContext is not Voiceroid2WordViewModel wv)
+            return;
+        if (wv.IsPunctuationWord)
+            return;
+
+        wv.BeginReadingEdit();
+        e.Handled = true;
+    }
+
+    /// <summary>読み入力欄が表示されたらフォーカスして全選択する。</summary>
+    void ReadingTextBox_IsVisibleChanged(object sender, DependencyPropertyChangedEventArgs e)
+    {
+        if (sender is not TextBox tb || tb.Visibility != Visibility.Visible)
+            return;
+
+        tb.Dispatcher.BeginInvoke(new Action(() =>
+        {
+            tb.Focus();
+            tb.SelectAll();
+        }), DispatcherPriority.Loaded);
+    }
+
+    void ReadingTextBox_LostFocus(object sender, RoutedEventArgs e)
+    {
+        if (sender is TextBox tb)
+            CommitReading(tb);
+    }
+
+    void ReadingTextBox_KeyDown(object sender, KeyEventArgs e)
+    {
+        if (sender is not TextBox tb)
+            return;
+
+        if (e.Key == Key.Enter)
+        {
+            CommitReading(tb);
+            tb.MoveFocus(new TraversalRequest(FocusNavigationDirection.Next));
+            e.Handled = true;
+        }
+        else if (e.Key == Key.Escape)
+        {
+            if (tb.DataContext is Voiceroid2WordViewModel wv)
+                wv.CancelReadingEdit();
+            e.Handled = true;
+        }
+    }
+
+    /// <summary>読み編集を確定し、読みが変わっていればエンジンへ適用する。</summary>
+    void CommitReading(TextBox tb)
+    {
+        if (tb.DataContext is not Voiceroid2WordViewModel wv || !wv.IsEditingReading)
+            return;
+
+        wv.IsEditingReading = false;
+
+        string reading = wv.ReadingText ?? string.Empty;
+        if (string.IsNullOrWhiteSpace(reading))
+            return;
+        if (reading == wv.EditableReading)
+            return;
+
+        if (DataContext is Voiceroid2AccentEditorViewModel evm)
+            _ = evm.ApplyWordReadingAsync(wv);
     }
 
     void CancelButton_Click(object sender, RoutedEventArgs e)

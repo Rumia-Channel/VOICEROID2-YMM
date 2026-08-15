@@ -323,6 +323,31 @@ try
     AITalkEngine.Close();
     Check(!AITalkEngine.IsOpened, "engine closed");
 
+    // ---------------- 読み編集 (よみがな) の適用パイプライン ----------------
+    // アクセントエディタの読み欄編集と同じ順序を模擬する
+    // (StripAccentMarks → TextToKana → ApplyAccentMarks → ToEditableKana → Parse)。
+    AITalkEngine.EnsureOpened(null, null, "akari_44");
+
+    static string ApplyReadingPipeline(string reading)
+        => AquesTalkKana.ToEditableKana(AquesTalkKana.ApplyAccentMarks(
+            reading,
+            AITalkEngine.DecodeAnsiText(AITalkEngine.TextToKana(AquesTalkKana.StripAccentMarks(reading)))));
+
+    var readingWords = AccentEditKana.Parse(ApplyReadingPipeline("ネコチャンダ"));
+    Check(readingWords.Count >= 1 && readingWords[0].Moras.Count == 5,
+        $"reading apply: ネコチャンダ → 5 moras (got {(readingWords.Count >= 1 ? readingWords[0].Moras.Count : 0)})");
+
+    var readingWords2 = AccentEditKana.Parse(ApplyReadingPipeline("ネ'コチャンダ"));
+    Check(readingWords2.Count >= 1 && readingWords2[0].AccentPosition == 0,
+        $"reading apply: ' 付き読みのアクセント位置 0 (got {(readingWords2.Count >= 1 ? readingWords2[0].AccentPosition : -99)})");
+
+    var readingWords3 = AccentEditKana.Parse(ApplyReadingPipeline("ネコ"));
+    Check(readingWords3.Count >= 1 && readingWords3[0].Moras.Count == 2,
+        $"reading apply: ネコ → 2 moras (got {(readingWords3.Count >= 1 ? readingWords3[0].Moras.Count : 0)})");
+
+    AITalkEngine.Close();
+    Check(!AITalkEngine.IsOpened, "engine closed after reading apply checks");
+
     // ---------------- 読み仮名辞書 (ReadingApplier) ----------------
     var entries = new List<ReadingEntry>
     {

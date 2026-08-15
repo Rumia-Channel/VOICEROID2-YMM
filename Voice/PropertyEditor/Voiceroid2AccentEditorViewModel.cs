@@ -87,6 +87,96 @@ internal sealed class Voiceroid2AccentEditorViewModel : IDisposable
         pronounce.SetEditKana(pronounce.SourceText, pronounce.NarratorName, CurrentKana, manual: true);
     }
 
+    readonly List<Task> pendingReadingApplies = new();
+
+    /// <summary>
+    /// 単語の読み (よみがな) をエンジンで正規化し、モーラ列・アクセントを再取得して反映する。
+    /// 読みが変わらない場合や空の場合は何もしない。エラーはここで処理し、タスクは例外を出さない。
+    /// </summary>
+    public async Task ApplyWordReadingAsync(Voiceroid2WordViewModel wordVm)
+    {
+        if (wordVm is null) return;
+
+        var task = ApplyWordReadingCoreAsync(wordVm);
+        pendingReadingApplies.Add(task);
+        try
+        {
+            await task;
+        }
+        catch (Exception ex)
+        {
+            if (System.Windows.Application.Current?.Dispatcher is { } dispatcher
+                && dispatcher.CheckAccess())
+            {
+                System.Windows.MessageBox.Show(
+                    System.Windows.Window.GetWindow(System.Windows.Application.Current.MainWindow),
+                    $"読みを反映できませんでした。\n{ex.Message}",
+                    "VOICEROID2 発音編集",
+                    System.Windows.MessageBoxButton.OK,
+                    System.Windows.MessageBoxImage.Warning);
+            }
+        }
+        finally
+        {
+            pendingReadingApplies.Remove(task);
+        }
+    }
+
+    /// <summary>進行中の読み反映処理が終わるまで待つ (OK / プレビューの直前用)。</summary>
+    public Task FlushPendingReadingAppliesAsync()
+    {
+        var pending = pendingReadingApplies.ToArray();
+        return pending.Length == 0 ? Task.CompletedTask : Task.WhenAll(pending);
+    }
+
+    async Task ApplyWordReadingCoreAsync(Voiceroid2WordViewModel wordVm)
+    {
+        string reading = wordVm.ReadingText?.Trim() ?? string.Empty;
+        if (reading.Length == 0) return;
+        if (reading == wordVm.EditableReading) return;
+
+        string voiceName = parameter?.VoiceName ?? pronounce.NarratorName;
+        if (string.IsNullOrWhiteSpace(voiceName)) return;
+
+        string editable;
+        await Voiceroid2EngineGate.Semaphore.WaitAsync();
+        try
+        {
+            editable = await Task.Run(() =>
+            {
+                AITalkEngine.EnsureOpened(
+                    AITalkInstallation.EnvValue(AITalkInstallation.EnvInstallDir),
+                    AITalkInstallation.EnvValue(AITalkInstallation.EnvUserDir),
+                    voiceName);
+
+                // 合成時と同じパイプライン: かな/漢字 → AI-Kana → 編集用かな
+                // (読み欄に入力された「'」は ApplyAccentMarks が AI-Kana へ反映する)
+                string plain = AquesTalkKana.StripAccentMarks(reading);
+                string aiKana = AITalkEngine.DecodeAnsiText(AITalkEngine.TextToKana(plain));
+                aiKana = AquesTalkKana.ApplyAccentMarks(reading, aiKana);
+                return AquesTalkKana.ToEditableKana(aiKana);
+            });
+        }
+        finally
+        {
+            Voiceroid2EngineGate.Semaphore.Release();
+        }
+
+        var parsed = AccentEditKana.Parse(editable);
+        if (parsed.Count == 0) return;
+
+        // 編集中の単語を再取得した単語 (通常 1 語、句読点を含む場合は複数) へ置き換える。
+        // アクセント位置は TextToKana が返すエンジン既定になる (読みが変わったため
+        // 以前の核位置は保持しない。VOICEPEAK の再取得と同じ挙動)。
+        int index = Words.IndexOf(wordVm);
+        if (index < 0) return;
+
+        var newVms = parsed.Select(w => new Voiceroid2WordViewModel(w)).ToList();
+        Words.RemoveAt(index);
+        for (int i = 0; i < newVms.Count; i++)
+            Words.Insert(index + i, newVms[i]);
+    }
+
     /// <summary>全単語のアクセントを編集中の最初の状態 (エンジン既定) へ戻す。</summary>
     public void ResetToDefault()
     {
@@ -99,6 +189,9 @@ internal sealed class Voiceroid2AccentEditorViewModel : IDisposable
     /// <summary>編集中の読みで音声をプレビュー再生する。</summary>
     async Task PlayPreviewAsync()
     {
+        // 反映待ちの読み編集を先に適用する (入力直後にプレビューしても古い読みで鳴らないように)
+        await FlushPendingReadingAppliesAsync();
+
         string kana = CurrentKana;
         string plain = AquesTalkKana.StripAccentMarks(kana);
         string voiceName = parameter?.VoiceName ?? pronounce.NarratorName;

@@ -60,6 +60,45 @@
             <Setter Property="FontSize" Value="13"/>
         </Style>
 
+        <!-- 句読点カードで本文を隠すためのスタイル -->
+        <Style x:Key="PunctuationCollapseStyle" TargetType="{x:Type FrameworkElement}">
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding IsPunctuationWord}" Value="True">
+                    <Setter Property="Visibility" Value="Collapsed"/>
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+
+        <!-- 読み編集中にモーラ行を隠すためのスタイル -->
+        <Style x:Key="EditingReadingCollapseStyle" TargetType="{x:Type FrameworkElement}">
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding IsEditingReading}" Value="True">
+                    <Setter Property="Visibility" Value="Collapsed"/>
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+
+        <!-- ヘッダー帯下の読み編集欄 (編集中のみ表示) -->
+        <Style x:Key="ReadingEditTextBoxStyle" TargetType="{x:Type TextBox}">
+            <Setter Property="Visibility" Value="Collapsed"/>
+            <Setter Property="Background" Value="#FFFFFF"/>
+            <Setter Property="BorderBrush" Value="#7197CC"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="6,4"/>
+            <Setter Property="Margin" Value="6,6,6,8"/>
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Foreground" Value="#3A3D44"/>
+            <Setter Property="TextAlignment" Value="Center"/>
+            <Setter Property="HorizontalContentAlignment" Value="Center"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding IsEditingReading}" Value="True">
+                    <Setter Property="Visibility" Value="Visible"/>
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+
         <!-- ============ ツールバーのボタン ============ -->
         <Style x:Key="ToolBarButtonStyle" TargetType="{x:Type Button}">
             <Setter Property="MinWidth" Value="64"/>
@@ -142,7 +181,7 @@
                             Content="既定に戻す"
                             Command="{Binding ResetCommand}"/>
                 </StackPanel>
-                <TextBlock Text="アクセント編集 (モーラをクリックしてアクセント位置を変更)"
+                <TextBlock Text="アクセント編集 (モーラをクリック: アクセント位置変更 / 単語の読みをクリック: よみがな編集)"
                            FontWeight="SemiBold"
                            Foreground="#565A62"
                            VerticalAlignment="Center"/>
@@ -166,11 +205,22 @@
                                         <RowDefinition Height="Auto"/>
                                         <RowDefinition Height="Auto"/>
                                     </Grid.RowDefinitions>
-                                    <Border Grid.Row="0" Style="{StaticResource CardHeaderBandStyle}">
+                                    <Border Grid.Row="0"
+                                            Style="{StaticResource CardHeaderBandStyle}"
+                                            Cursor="Hand"
+                                            ToolTip="クリックで読みを編集"
+                                            MouseLeftButtonDown="HeaderBand_MouseLeftButtonDown">
                                         <TextBlock Text="{Binding Surface}" Style="{StaticResource HeaderTextBlockStyle}"/>
                                     </Border>
-                                    <StackPanel Grid.Row="1" Margin="6,8,6,10">
-                                        <ItemsControl ItemsSource="{Binding Moras}">
+                                    <StackPanel Grid.Row="1" Margin="6,8,6,10"
+                                                Style="{StaticResource PunctuationCollapseStyle}">
+                                        <TextBox Style="{StaticResource ReadingEditTextBoxStyle}"
+                                                 Text="{Binding ReadingText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                                 IsVisibleChanged="ReadingTextBox_IsVisibleChanged"
+                                                 LostFocus="ReadingTextBox_LostFocus"
+                                                 KeyDown="ReadingTextBox_KeyDown"/>
+                                        <ItemsControl ItemsSource="{Binding Moras}"
+                                                      Style="{StaticResource EditingReadingCollapseStyle}">
                                             <ItemsControl.ItemsPanel>
                                                 <ItemsPanelTemplate>
                                                     <StackPanel Orientation="Horizontal"/>
