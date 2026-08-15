@@ -1,7 +1,9 @@
 @echo off
 rem Build the fake aitalked.dll (test double for VOICEROID2-YMM verification).
 rem Visual Studio is located via vswhere (no hardcoded paths).
+rem CI など呼び出し元のカレントディレクトリに依存しないよう、自身の場所へ移動する。
 setlocal
+cd /d "%~dp0"
 set "VSWHERE=%ProgramFiles(x86)%\Microsoft Visual Studio\Installer\vswhere.exe"
 if exist "%VSWHERE%" goto found_vswhere
 echo vswhere not found: %VSWHERE%

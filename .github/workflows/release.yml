@@ -1,0 +1,75 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+      - "[0-9]*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Build and publish release zip
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      # main 上で切られた tag のみリリースを作成する
+      - name: Verify tag is on main
+        shell: pwsh
+        run: |
+          git merge-base --is-ancestor "${{ github.sha }}" origin/main
+          if ($LASTEXITCODE -ne 0) {
+            throw "Tag '${{ github.ref_name }}' is not on main. Releases are only created for tags on main."
+          }
+
+      # YMM4 本体の公式配布 ZIP から参照 DLL を取得する
+      - name: Download YMM4 reference assemblies
+        run: |
+          mkdir ymm4_ref
+          curl.exe -L -o ymm4.zip "https://object-storage.tyo1.conoha.io/v1/nc_4fac3ef0e6d843249e0ab2f1fc3e8f85/public/YukkuriMovieMaker_v4.zip"
+          tar -xf ymm4.zip -C ymm4_ref
+        shell: cmd
+
+      - name: Locate YMM4 directory
+        shell: powershell
+        run: |
+          $dll = Get-ChildItem -Path ymm4_ref -Recurse -Filter YukkuriMovieMaker.Plugin.dll | Select-Object -First 1
+          if (-not $dll) { throw "YukkuriMovieMaker.Plugin.dll not found in ymm4_ref" }
+          "YMM4_DIR=$($dll.DirectoryName)\" | Out-File -FilePath $env:GITHUB_ENV -Append
+
+      # 認証コードは GitHub Secret (VOICEROID2_AUTH_SEED) で DLL に埋め込む。
+      # 未設定なら埋め込まずにビルドする (実行時は環境変数 VOICEROID2_AUTH_SEED が必要)。
+      - name: Build plugin
+        run: dotnet build -c Release -p:AuthSeed="${{ secrets.VOICEROID2_AUTH_SEED }}"
+
+      - name: Package release zip
+        id: package
+        shell: pwsh
+        run: |
+          $dll = "bin\Release\net10.0-windows10.0.19041.0\VOICEROID2-YMM.dll"
+          if (-not (Test-Path $dll)) { throw "Built DLL not found: $dll" }
+          New-Item -ItemType Directory -Force -Path dist | Out-Null
+          $zip = "dist\VOICEROID2-YMM-${{ github.ref_name }}.zip"
+          Compress-Archive -Path $dll, "code.jpg", "README.md" -DestinationPath $zip
+          "archive_path=$zip" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG_NAME: ${{ github.ref_name }}
+        shell: pwsh
+        run: |
+          gh release view $env:TAG_NAME --repo ${{ github.repository }} *> $null
+          if ($LASTEXITCODE -ne 0) {
+            gh release create $env:TAG_NAME --repo ${{ github.repository }} --title $env:TAG_NAME --verify-tag --generate-notes
+          }
+          gh release upload $env:TAG_NAME (Get-Item "${{ steps.package.outputs.archive_path }}").FullName --repo ${{ github.repository }} --clobber
