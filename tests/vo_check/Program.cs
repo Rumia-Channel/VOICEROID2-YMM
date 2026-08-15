@@ -198,6 +198,10 @@ if (args.Length >= 2 && args[0] == "--real")
 
 Console.WriteLine($"ACP (ANSI code page) = {CultureInfo.CurrentCulture.TextInfo.ANSICodePage}");
 
+// 日本語 ACP (932) でのみ日本語文字列の検証を行う。他の ACP (CI ランナー等) では
+// ANSI 変換で日本語が失われるため、ASCII 部のみの検証にフォールバックする。
+bool isJapaneseAcp = CultureInfo.CurrentCulture.TextInfo.ANSICodePage == 932;
+
 // ---------------- フェイク環境の構築 ----------------
 string tmp = Path.Combine(Path.GetTempPath(), "vo2_fake_" + Guid.NewGuid().ToString("N"));
 string install = Path.Combine(tmp, "install");
@@ -345,10 +349,18 @@ try
     Check(log.Contains("voiceDbs=" + Path.Combine(install, "Voice")), "log: voice db dir");
     Check(log.Contains("langload " + Path.Combine(install, "Lang", "standard")), "log: langload standard");
     Check(log.Contains("voiceload akari_44"), "log: voiceload");
-    Check(log.Contains("reloadword " + Path.Combine(userDir, "単語辞書", "user.wdic")), "log: reloadword");
-    Check(log.Contains("reloadphrase " + Path.Combine(userDir, "フレーズ辞書", "user.pdic")), "log: reloadphrase");
-    Check(log.Contains("reloadsymbol " + Path.Combine(userDir, "記号ポーズ辞書", "user.sdic")), "log: reloadsymbol");
-    Check(log.Contains("texttokana mode=21 text=こんにちは"), "log: texttokana (mode PLAIN_TO_AIKANA)");
+    Check(log.Contains("reloadword"), "log: reloadword");
+    Check(log.Contains("reloadphrase"), "log: reloadphrase");
+    Check(log.Contains("reloadsymbol"), "log: reloadsymbol");
+    Check(log.Contains("texttokana mode=21"), "log: texttokana (mode PLAIN_TO_AIKANA)");
+    if (isJapaneseAcp)
+    {
+        // 日本語 ACP (932) では辞書パス (日本語ディレクトリ名) と入力テキストも検証する
+        Check(log.Contains("reloadword " + Path.Combine(userDir, "単語辞書", "user.wdic")), "log: reloadword path");
+        Check(log.Contains("reloadphrase " + Path.Combine(userDir, "フレーズ辞書", "user.pdic")), "log: reloadphrase path");
+        Check(log.Contains("reloadsymbol " + Path.Combine(userDir, "記号ポーズ辞書", "user.sdic")), "log: reloadsymbol path");
+        Check(log.Contains("texttokana mode=21 text=こんにちは"), "log: texttokana text");
+    }
     Check(log.Contains("texttospeech mode=12"), "log: texttospeech (mode AIKANA_TO_WAVE)");
     Check(log.Contains("closekana"), "log: closekana");
     Check(log.Contains("closespeech"), "log: closespeech");
@@ -373,17 +385,21 @@ try
             reading,
             AITalkEngine.DecodeAnsiText(AITalkEngine.TextToKana(AquesTalkKana.StripAccentMarks(reading)))));
 
-    var readingWords = AccentEditKana.Parse(ApplyReadingPipeline("ネコチャンダ"));
-    Check(readingWords.Count >= 1 && readingWords[0].Moras.Count == 5,
-        $"reading apply: ネコチャンダ → 5 moras (got {(readingWords.Count >= 1 ? readingWords[0].Moras.Count : 0)})");
+    // かなは ANSI 変換で失われるため、日本語 ACP (932) でのみ読みパイプラインを検証する
+    if (isJapaneseAcp)
+    {
+        var readingWords = AccentEditKana.Parse(ApplyReadingPipeline("ネコチャンダ"));
+        Check(readingWords.Count >= 1 && readingWords[0].Moras.Count == 5,
+            $"reading apply: ネコチャンダ → 5 moras (got {(readingWords.Count >= 1 ? readingWords[0].Moras.Count : 0)})");
 
-    var readingWords2 = AccentEditKana.Parse(ApplyReadingPipeline("ネ'コチャンダ"));
-    Check(readingWords2.Count >= 1 && readingWords2[0].AccentPosition == 0,
-        $"reading apply: ' 付き読みのアクセント位置 0 (got {(readingWords2.Count >= 1 ? readingWords2[0].AccentPosition : -99)})");
+        var readingWords2 = AccentEditKana.Parse(ApplyReadingPipeline("ネ'コチャンダ"));
+        Check(readingWords2.Count >= 1 && readingWords2[0].AccentPosition == 0,
+            $"reading apply: ' 付き読みのアクセント位置 0 (got {(readingWords2.Count >= 1 ? readingWords2[0].AccentPosition : -99)})");
 
-    var readingWords3 = AccentEditKana.Parse(ApplyReadingPipeline("ネコ"));
-    Check(readingWords3.Count >= 1 && readingWords3[0].Moras.Count == 2,
-        $"reading apply: ネコ → 2 moras (got {(readingWords3.Count >= 1 ? readingWords3[0].Moras.Count : 0)})");
+        var readingWords3 = AccentEditKana.Parse(ApplyReadingPipeline("ネコ"));
+        Check(readingWords3.Count >= 1 && readingWords3[0].Moras.Count == 2,
+            $"reading apply: ネコ → 2 moras (got {(readingWords3.Count >= 1 ? readingWords3[0].Moras.Count : 0)})");
+    }
 
     AITalkEngine.Close();
     Check(!AITalkEngine.IsOpened, "engine closed after reading apply checks");
