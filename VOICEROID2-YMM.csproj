@@ -7,6 +7,11 @@
 		<UseWPF>true</UseWPF>
 
 		<RootNamespace>Voiceroid2Ymm</RootNamespace>
+		<!--
+			アセンブリ名は VOICEROID2-YMM のまま (保存済みプロジェクトの $type 解決と
+			WPF XAML コンパイルのため変更しない)。DLL ファイル名のみ VOICEROID2.dll にする
+			(PostBuild でコピー生成)。
+		-->
 		<AssemblyName>VOICEROID2-YMM</AssemblyName>
 		<Product>VOICEROID2-YMM</Product>
 		<Description>YMM4 voice synthesis plugin for VOICEROID2 (AITalk aitalked.dll)</Description>
@@ -70,12 +75,14 @@
 	</ItemGroup>
 
 	<!--
-		ビルド後にYMM4のプラグインフォルダにdllをコピーする。
+		ビルド後に DLL を VOICEROID2.dll として bin へコピー生成し、
+		YMM4 の user\plugin\VOICEROID2\ に配置する。
+		旧名の user\plugin\VOICEROID2-YMM は重複読み込みを防ぐため削除する。
 		YMM4 起動中はファイルがロックされてコピーできないため、失敗時は警告のみにする
 		(次回 YMM4 終了後のビルドで反映される)。
 	-->
 	<Target Name="PostBuild" AfterTargets="PostBuildEvent">
-		<Exec Command="mkdir &quot;$(YMM4DirPath)user\plugin\$(ProjectName)&quot; &gt; NUL 2&gt;&amp;1&#xD;&#xA;copy /Y &quot;$(TargetPath)&quot; &quot;$(YMM4DirPath)user\plugin\$(ProjectName)\&quot; &gt; NUL&#xD;&#xA;if errorlevel 1 echo [VOICEROID2-YMM] warning: YMM4 が起動中のため DLL をコピーできませんでした。YMM4 を終了して再ビルドしてください" IgnoreExitCode="true" />
+		<Exec Command="copy /Y &quot;$(TargetPath)&quot; &quot;$(OutDir)VOICEROID2.dll&quot; &gt; NUL&#xD;&#xA;rmdir /S /Q &quot;$(YMM4DirPath)user\plugin\VOICEROID2-YMM&quot; &gt; NUL 2&gt;&amp;1&#xD;&#xA;mkdir &quot;$(YMM4DirPath)user\plugin\VOICEROID2&quot; &gt; NUL 2&gt;&amp;1&#xD;&#xA;copy /Y &quot;$(OutDir)VOICEROID2.dll&quot; &quot;$(YMM4DirPath)user\plugin\VOICEROID2\&quot; &gt; NUL&#xD;&#xA;if errorlevel 1 echo [VOICEROID2] warning: YMM4 が起動中のため DLL をコピーできませんでした。YMM4 を終了して再ビルドしてください" IgnoreExitCode="true" />
 	</Target>
 
 </Project>

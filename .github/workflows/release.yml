@@ -63,11 +63,13 @@ jobs:
         id: package
         shell: pwsh
         run: |
-          $dll = "bin\Release\net10.0-windows10.0.19041.0\VOICEROID2-YMM.dll"
+          $dll = "bin\Release\net10.0-windows10.0.19041.0\VOICEROID2.dll"
           if (-not (Test-Path $dll)) { throw "Built DLL not found: $dll" }
           New-Item -ItemType Directory -Force -Path dist | Out-Null
-          $zip = "dist\VOICEROID2-YMM-${{ github.ref_name }}.zip"
-          Compress-Archive -Path $dll, "code.jpg", "README.md" -DestinationPath $zip
+          New-Item -ItemType Directory -Force -Path "staging\VOICEROID2" | Out-Null
+          Copy-Item -Path $dll, "code.jpg", "README.md" -Destination "staging\VOICEROID2"
+          $zip = "dist\VOICEROID2-${{ github.ref_name }}.zip"
+          Compress-Archive -Path "staging\VOICEROID2" -DestinationPath $zip
           "archive_path=$zip" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
 
       - name: Create GitHub Release

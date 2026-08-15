@@ -8,7 +8,8 @@ YMM4 上では声質のエンジン名・設定名として **VOICEROID2** と�
 
 ## セットアップ
 
-1. `VOICEROID2-YMM.dll` を YMM4 の `user\plugin\VOICEROID2-YMM\` フォルダに配置する。
+1. 配布 ZIP を展開すると `VOICEROID2` フォルダができるので、それを YMM4 の `user\plugin\` に配置する
+   (フォルダ内: `VOICEROID2.dll` / `code.jpg` / `README.md`)。
 2. 認証シードをシステム環境変数 `VOICEROID2_AUTH_SEED` に設定する (値は下記の画像を参照)。
 
    <img src="code.jpg" height="24px">

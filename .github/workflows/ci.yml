@@ -48,5 +48,5 @@ jobs:
       - name: Upload plugin artifact
         uses: actions/upload-artifact@v4
         with:
-          name: VOICEROID2-YMM
-          path: bin\Release\net10.0-windows10.0.19041.0\VOICEROID2-YMM.dll
+          name: VOICEROID2
+          path: bin\Release\net10.0-windows10.0.19041.0\VOICEROID2.dll
