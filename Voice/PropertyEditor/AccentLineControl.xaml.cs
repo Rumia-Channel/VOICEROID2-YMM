@@ -12,7 +12,8 @@ namespace Voiceroid2Ymm.Voice.PropertyEditor;
 /// <summary>
 /// 単語内のモーラ列に対し、アクセント高低を VOICEPEAK-plus 風の滑らかな折れ線で
 /// 表示・編集するコントロール (アクセントモードのみの移植)。
-/// クリックでアクセント核 (高低の切り替わり点) をトグルする。
+/// クリックでアクセント核 (高低の切り替わり点) をトグルし、モーラを上下にドラッグ
+/// すると核位置をライブ移動する (上=高、下=低)。
 /// 編集対象外 (句読点・特殊モーラ) では線を途切れさせ、点を中央寄りに表示する。
 /// </summary>
 public partial class AccentLineControl : UserControl
@@ -126,8 +127,8 @@ public partial class AccentLineControl : UserControl
         set => SetValue(FillBrushProperty, value);
     }
 
-    int _clickIndex = -1;
-    bool _clickMoved;
+    int _dragIndex = -1;
+    bool _dragMoved;
     Point _pointerDownPos;
 
     public AccentLineControl()
@@ -160,7 +161,7 @@ public partial class AccentLineControl : UserControl
     void OnUnloaded(object sender, RoutedEventArgs e)
     {
         UnsubscribeOld(ItemsSource);
-        ReleaseClick();
+        ReleaseDrag();
     }
 
     void SubscribeNew(IEnumerable? items)
@@ -248,6 +249,17 @@ public partial class AccentLineControl : UserControl
         return best;
     }
 
+    double NormalizedFromY(double y, double height)
+    {
+        double top = GetTop(height);
+        double bottom = GetBottom(height);
+        if (bottom - top <= 0) return 0.5;
+        double n = 1.0 - (y - top) / (bottom - top);
+        if (n < 0) n = 0;
+        if (n > 1) n = 1;
+        return n;
+    }
+
     void OnMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
     {
         var items = ItemsSource?.Cast<Voiceroid2MoraViewModel>().ToList();
@@ -257,8 +269,8 @@ public partial class AccentLineControl : UserControl
         int index = NearestIndex(p.X, items.Count);
         if (index < 0 || !items[index].IsAccentEditable) return;
 
-        _clickIndex = index;
-        _clickMoved = false;
+        _dragIndex = index;
+        _dragMoved = false;
         _pointerDownPos = p;
         CaptureMouse();
         e.Handled = true;
@@ -266,44 +278,57 @@ public partial class AccentLineControl : UserControl
 
     void OnMouseMove(object sender, MouseEventArgs e)
     {
-        if (_clickIndex < 0) return;
+        if (_dragIndex < 0) return;
         if (e.LeftButton != MouseButtonState.Pressed)
         {
-            ReleaseClick();
+            ReleaseDrag();
             return;
         }
 
         Point p = e.GetPosition(this);
         if (Math.Abs(p.X - _pointerDownPos.X) > 2.0 || Math.Abs(p.Y - _pointerDownPos.Y) > 2.0)
-            _clickMoved = true;
+            _dragMoved = true;
+
+        // ドラッグ中は縦位置に応じてアクセント核をライブ移動する (上=高、下=低)。
+        if (_dragMoved)
+        {
+            var items = ItemsSource?.Cast<Voiceroid2MoraViewModel>().ToList();
+            if (items is null || _dragIndex >= items.Count) return;
+
+            var mora = items[_dragIndex];
+            double n = NormalizedFromY(p.Y, ActualHeight > 0 ? ActualHeight : 120.0);
+            if (n >= 0.5) mora.SetAccentHigh();
+            else mora.SetAccentLow();
+        }
+        e.Handled = true;
     }
 
     void OnMouseLeftButtonUp(object sender, MouseButtonEventArgs e)
     {
-        if (_clickIndex < 0) return;
+        if (_dragIndex < 0) return;
 
         // 移動がほぼ無ければクリックとみなし、アクセント核をトグルする。
-        if (!_clickMoved)
+        if (!_dragMoved)
         {
             var items = ItemsSource?.Cast<Voiceroid2MoraViewModel>().ToList();
-            if (items is not null && _clickIndex < items.Count && items[_clickIndex].IsAccentEditable)
-                items[_clickIndex].ToggleAccent();
+            if (items is not null && _dragIndex < items.Count && items[_dragIndex].IsAccentEditable)
+                items[_dragIndex].ToggleAccent();
         }
 
-        ReleaseClick();
+        ReleaseDrag();
         e.Handled = true;
     }
 
     void OnMouseLeave(object sender, MouseEventArgs e)
     {
-        if (_clickIndex >= 0 && e.LeftButton != MouseButtonState.Pressed)
-            ReleaseClick();
+        if (_dragIndex >= 0 && e.LeftButton != MouseButtonState.Pressed)
+            ReleaseDrag();
     }
 
-    void ReleaseClick()
+    void ReleaseDrag()
     {
-        _clickIndex = -1;
-        _clickMoved = false;
+        _dragIndex = -1;
+        _dragMoved = false;
         try { ReleaseMouseCapture(); }
         catch { /* ignore */ }
     }

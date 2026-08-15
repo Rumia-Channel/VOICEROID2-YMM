@@ -181,7 +181,7 @@
                             Content="既定に戻す"
                             Command="{Binding ResetCommand}"/>
                 </StackPanel>
-                <TextBlock Text="アクセント編集 (モーラをクリック: アクセント位置変更 / 単語の読みをクリック: よみがな編集)"
+                <TextBlock Text="アクセント編集 (モーラをクリック/ドラッグ: アクセント位置変更 / 単語の読みをクリック: よみがな編集)"
                            FontWeight="SemiBold"
                            Foreground="#565A62"
                            VerticalAlignment="Center"/>

@@ -39,6 +39,31 @@ internal sealed class Voiceroid2MoraViewModel : INotifyPropertyChanged
     /// <summary>アクセント核のトグル (エディタのクリックから呼ばれる)。</summary>
     public void ToggleAccent() => word.ToggleAccent(Index);
 
+    /// <summary>
+    /// このモーラを「高」にする (ドラッグで上へ)。
+    /// アクセント核をこのモーラの直後に移動する。最後のモーラなら句内に下がりなし
+    /// (エンジン既定) へ戻す。
+    /// </summary>
+    public void SetAccentHigh()
+    {
+        int pos = word.AccentPosition;
+        if (pos > Index) return; // すでに高
+
+        if (Index + 1 < word.Moras.Count)
+            word.SetAccent(Index + 1);
+        else
+            word.ClearAccent();
+    }
+
+    /// <summary>このモーラを「低」にする (ドラッグで下へ)。アクセント核をこのモーラへ移動する。</summary>
+    public void SetAccentLow()
+    {
+        int pos = word.AccentPosition;
+        if (pos <= Index) return; // すでに低 (未指定時は表示が低のため無操作)
+
+        word.SetAccent(Index);
+    }
+
     /// <summary>単語のアクセント位置変更を反映する (word から呼ばれる)。</summary>
     public void NotifyAccentChanged()
         => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IsAccentHigh)));
