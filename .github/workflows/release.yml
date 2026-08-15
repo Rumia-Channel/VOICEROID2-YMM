@@ -48,8 +48,16 @@ jobs:
 
       # 認証コードは GitHub Secret (VOICEROID2_AUTH_SEED) で DLL に埋め込む。
       # 未設定なら埋め込まずにビルドする (実行時は環境変数 VOICEROID2_AUTH_SEED が必要)。
+      - name: Compute plugin version from tag
+        id: version
+        shell: pwsh
+        run: |
+          $version = "${{ github.ref_name }}"
+          if ($version.StartsWith("v")) { $version = $version.Substring(1) }
+          "version=$version" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+
       - name: Build plugin
-        run: dotnet build -c Release -p:AuthSeed="${{ secrets.VOICEROID2_AUTH_SEED }}"
+        run: dotnet build -c Release -p:AuthSeed="${{ secrets.VOICEROID2_AUTH_SEED }}" -p:Version=${{ steps.version.outputs.version }}
 
       - name: Package release zip
         id: package

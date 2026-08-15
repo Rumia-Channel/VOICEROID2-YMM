@@ -11,6 +11,12 @@
 		<Product>VOICEROID2-YMM</Product>
 		<Description>YMM4 voice synthesis plugin for VOICEROID2 (AITalk aitalked.dll)</Description>
 
+		<!--
+			プラグインのバージョン。開発ビルドは 0.1.0、リリース時は
+			-p:Version=<タグから v を除いた値> (例: v1.2.3 → 1.2.3) で上書きされる。
+		-->
+		<Version Condition="'$(Version)' == ''">0.1.0</Version>
+
 		<!--YMM4 参照が必要なプロジェクト (Directory.Build.props のエラーチェック用)-->
 		<RequiresYMM4>true</RequiresYMM4>
 
