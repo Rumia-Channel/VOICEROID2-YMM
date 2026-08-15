@@ -155,7 +155,7 @@ if (args.Length >= 2 && args[0] == "--real")
         // ---- BuildAiKana: プレビューと合成の共通パイプライン ----
         string baseSerif = "こんにちは、弦巻マキです";
         string aikanaNoEdit = AITalkEngine.BuildAiKana(baseSerif, null);
-        string aikanaSameReading = AITalkEngine.BuildAiKana(baseSerif, "コ'ンニチワ、ツルマ'キマキデス");
+        string aikanaSameReading = AITalkEngine.BuildAiKana(baseSerif, "コ'ンニチワ、ツルマ'キ、マキデス");
         string aikanaChangedReading = AITalkEngine.BuildAiKana(baseSerif, "コンニチワ、ツルマキネコチャンダ");
         Console.WriteLine($"BUILD aikana no-edit: {aikanaNoEdit}");
         Console.WriteLine($"BUILD aikana same-reading: {aikanaSameReading}");
@@ -408,6 +408,10 @@ try
     Check(AquesTalkKana.ApplyAccentMarks("コ'ンニチワ、サヨウナラ", "コ^ンニチワ$2_2サ^ヨウナラ") == "コ^ンニチワ$2_2サ^ヨウナラ", "accent applied to marked phrase only");
     Check(AquesTalkKana.ToEditableKana("<S>(Irq MARK=_AI@12)コ^ンニチワ$2_2ユ^ック!リ<H>") == "コ'ンニチワ、ユ'ックリ", "AI-Kana to editable kana");
     Check(AquesTalkKana.ToEditableKana("ハシ") == "ハシ", "editable kana passthrough");
+    Check(AquesTalkKana.ToEditableKana("ユ^ック!リ|0シ^テ|0イ^ッテネ") == "ユ'ックリ、シ'テ、イ'ッテネ",
+        "editable kana: 短ポーズ | を句読点として表示");
+    Check(AquesTalkKana.ToEditableKana("コ^ンニチワ$2_2ツ^ル!マキ|0^マ!キデス") == "コ'ンニチワ、ツ'ルマキ、マキデス",
+        "editable kana: アクセント句境界を保持");
 
     // ---------------- YMM4 読み欄 (AquesTalk 記法) の正規化 ----------------
     Check(AquesTalkKana.NormalizeYukkuriKana("こんにちわ、つるまき/まきで_ス") == "こんにちわ、つるまきまきで!ス",
