@@ -151,7 +151,8 @@ public static class AquesTalkKana
     /// <summary>
     /// AI-Kana を編集用のかなテキストへ変換する (ConvertKanjiToYomiAsync 用)。
     /// - アクセント核 (^) → 「'」
-    /// - 句読点ポーズ ($N_N) と短ポーズ (|) → 「、」 (アクセント句の区切りを保持する)
+    /// - 句読点ポーズ ($N_N) → 「、」 (GUI では P マークとして表示されるポーズ)
+    /// - 短ポーズ (|) → 「|」 (アクセント句の区切り。無音なので GUI では何も表示しない)
     /// - JEITA 制御記号 ((Irq MARK=...) / &lt;S&gt; / &lt;H&gt;)・無声化 (!) は除去
     ///   (無声化や JEITA 制御は TextToKana が再生成するため表示しない)
     /// </summary>
@@ -186,13 +187,10 @@ public static class AquesTalkKana
             switch (c)
             {
                 case '$':
-                    sb.Append('、');
+                    sb.Append('、'); // ポーズ (読点) — GUI では P マークとして表示される
                     break;
                 case '|':
-                    // 短ポーズ (アクセント句境界) は句読点として表示する。
-                    // 削除するとエンジンが分けたアクセント句 (例: ツルマキ|マキデス) が
-                    // 1 語に統合され、VOICEROID2 の GUI と区切り位置がずれるため。
-                    sb.Append('、');
+                    sb.Append('|'); // 短ポーズ = アクセント句境界。無音なので GUI では何も表示しない
                     break;
                 case '^':
                 case '!':

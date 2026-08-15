@@ -27,6 +27,10 @@
                     <Setter Property="Background" Value="#EEF1F5"/>
                     <Setter Property="BorderBrush" Value="#E0E4EA"/>
                 </DataTrigger>
+                <DataTrigger Binding="{Binding IsPhraseBoundary}" Value="True">
+                    <!-- 無音のアクセント句境界 (|) はカードを出さずスペースとして見せる -->
+                    <Setter Property="Visibility" Value="Collapsed"/>
+                </DataTrigger>
             </Style.Triggers>
         </Style>
 
@@ -252,7 +256,7 @@
                                                     IsEnabled="{Binding CanSplitAccent}"
                                                     ToolTip="アクセント核の位置で句を分割 (、を挿入)"
                                                     Click="SplitPhraseButton_Click"/>
-                                            <TextBlock Text="{Binding Surface}" Style="{StaticResource HeaderTextBlockStyle}"/>
+                                            <TextBlock Text="{Binding DisplayText}" Style="{StaticResource HeaderTextBlockStyle}"/>
                                         </DockPanel>
                                     </Border>
                                     <StackPanel Grid.Row="1" Margin="6,8,6,10"

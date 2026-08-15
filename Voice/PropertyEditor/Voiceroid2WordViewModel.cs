@@ -16,8 +16,29 @@ internal sealed class Voiceroid2WordViewModel : INotifyPropertyChanged
 
     public event PropertyChangedEventHandler? PropertyChanged;
 
-    /// <summary>ヘッダー表示 (読み)。</summary>
+    /// <summary>ヘッダー表示 (読み)。句読点・句境界の場合はその表記。</summary>
     public string Surface { get; }
+
+    /// <summary>
+    /// GUI 表示用のヘッダーテキスト。
+    /// ポーズ (読点由来の「、」) は VOICEROID2 同様の P マーク、無音の句境界 (|) は空文字。
+    /// </summary>
+    public string DisplayText
+    {
+        get
+        {
+            if (!IsPunctuationWord) return Surface;
+            return source.Text switch
+            {
+                "、" => "P",
+                "|" => " ",
+                _ => source.Text,
+            };
+        }
+    }
+
+    /// <summary>無音のアクセント句境界か (| 由来)。GUI ではカードを隠してスペースとして見せる。</summary>
+    public bool IsPhraseBoundary => IsPunctuationWord && source.Text == "|";
 
     public ObservableCollection<Voiceroid2MoraViewModel> Moras { get; }
 

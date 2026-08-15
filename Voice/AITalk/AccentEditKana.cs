@@ -20,7 +20,7 @@ public static class AccentEditKana
         public bool IsPunctuation => Moras.Count == 0;
     }
 
-    static readonly HashSet<char> Punctuation = new("、。？！…・");
+    static readonly HashSet<char> Punctuation = new("、。？！…・|");
 
     /// <summary>
     /// 編集用かなを単語列へ分解する。
@@ -113,9 +113,10 @@ public static class AccentEditKana
     /// <summary>
     /// アクセント核の位置で単語を 2 つのアクセント句へ分割した編集用かなを返す。
     /// 句読点なしの単語かな (アクセントマークなし) と核位置 (1..count-1) を受け取り、
-    /// 「前半 (核の手前まで) + ' + 、 + 後半の先頭 + ' + 後半の残り」を組み立てる。
+    /// 「前半 (核の手前まで) + ' + | + 後半の先頭 + ' + 後半の残り」を組み立てる。
+    /// 区切りは無音の句境界 (|) で、ポーズ (、) は挿入しない。
     /// 前半は核を末尾に、後半は核を先頭に置くため、分割前の高低の流れが保たれる。
-    /// 例: ハシ (核 1) → ハ'、シ'
+    /// 例: ハシ (核 1) → ハ'|シ'
     /// </summary>
     public static string? SplitWordAtNucleus(string wordKana, int nucleus)
     {
@@ -129,7 +130,7 @@ public static class AccentEditKana
             sb.Append(wordKana.Substring(morae[i].Start, morae[i].Length));
         sb.Append(AquesTalkKana.AccentMark); // 前半: 核を末尾に (ここまで高)
 
-        sb.Append('、'); // 句読点ポーズで句を分ける
+        sb.Append('|'); // 無音のアクセント句境界 (ポーズではない)
 
         sb.Append(wordKana.Substring(morae[nucleus].Start, morae[nucleus].Length));
         sb.Append(AquesTalkKana.AccentMark); // 後半: 核を先頭に (ここから低)

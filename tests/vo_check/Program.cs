@@ -155,7 +155,7 @@ if (args.Length >= 2 && args[0] == "--real")
         // ---- BuildAiKana: プレビューと合成の共通パイプライン ----
         string baseSerif = "こんにちは、弦巻マキです";
         string aikanaNoEdit = AITalkEngine.BuildAiKana(baseSerif, null);
-        string aikanaSameReading = AITalkEngine.BuildAiKana(baseSerif, "コ'ンニチワ、ツルマ'キ、マキデス");
+        string aikanaSameReading = AITalkEngine.BuildAiKana(baseSerif, "コ'ンニチワ、ツルマ'キ|マキデス");
         string aikanaChangedReading = AITalkEngine.BuildAiKana(baseSerif, "コンニチワ、ツルマキネコチャンダ");
         Console.WriteLine($"BUILD aikana no-edit: {aikanaNoEdit}");
         Console.WriteLine($"BUILD aikana same-reading: {aikanaSameReading}");
@@ -165,6 +165,14 @@ if (args.Length >= 2 && args[0] == "--real")
             "build aikana: アクセントのみの編集はセリフ由来を維持し核位置を反映");
         Check(aikanaChangedReading.Contains("チャ") && aikanaChangedReading != aikanaSameReading,
             "build aikana: 読み変更は再変換される");
+
+        // ---- 句境界 | とポーズ 、 の入力受理 ----
+        string tkPipe = AITalkEngine.DecodeAnsiText(AITalkEngine.TextToKana("コンニチワ|ツルマキ"));
+        string tkComma = AITalkEngine.DecodeAnsiText(AITalkEngine.TextToKana("コンニチワ、ツルマキ"));
+        Console.WriteLine($"PIPE texttokana: {tkPipe}");
+        Console.WriteLine($"COMMA texttokana: {tkComma}");
+        Check(tkPipe.Contains("ンニチワ") && tkPipe.Contains("ルマキ"), "engine accepts | in input");
+        Check(tkComma.Contains("$"), "engine converts 、 to pause");
 
         var pcm = AITalkEngine.KanaToSpeech(
             AITalkEngine.EncodeAnsiText(edited),
@@ -408,10 +416,10 @@ try
     Check(AquesTalkKana.ApplyAccentMarks("コ'ンニチワ、サヨウナラ", "コ^ンニチワ$2_2サ^ヨウナラ") == "コ^ンニチワ$2_2サ^ヨウナラ", "accent applied to marked phrase only");
     Check(AquesTalkKana.ToEditableKana("<S>(Irq MARK=_AI@12)コ^ンニチワ$2_2ユ^ック!リ<H>") == "コ'ンニチワ、ユ'ックリ", "AI-Kana to editable kana");
     Check(AquesTalkKana.ToEditableKana("ハシ") == "ハシ", "editable kana passthrough");
-    Check(AquesTalkKana.ToEditableKana("ユ^ック!リ|0シ^テ|0イ^ッテネ") == "ユ'ックリ、シ'テ、イ'ッテネ",
-        "editable kana: 短ポーズ | を句読点として表示");
-    Check(AquesTalkKana.ToEditableKana("コ^ンニチワ$2_2ツ^ル!マキ|0^マ!キデス") == "コ'ンニチワ、ツ'ルマキ、マキデス",
-        "editable kana: アクセント句境界を保持");
+    Check(AquesTalkKana.ToEditableKana("ユ^ック!リ|0シ^テ|0イ^ッテネ") == "ユ'ックリ|シ'テ|イ'ッテネ",
+        "editable kana: 句境界 | を保持");
+    Check(AquesTalkKana.ToEditableKana("コ^ンニチワ$2_2ツ^ル!マキ|0^マ!キデス") == "コ'ンニチワ、ツ'ルマキ|マキデス",
+        "editable kana: ポーズは 、、句境界は | で区別");
 
     // ---------------- YMM4 読み欄 (AquesTalk 記法) の正規化 ----------------
     Check(AquesTalkKana.NormalizeYukkuriKana("こんにちわ、つるまき/まきで_ス") == "こんにちわ、つるまきまきで!ス",
@@ -469,17 +477,17 @@ try
     Check(accentWords4.Count == 0 && AccentEditKana.Build(accentWords4) == string.Empty, "accent parse: empty");
 
     // ---------------- 句分割 (AccentEditKana.SplitWordAtNucleus) ----------------
-    Check(AccentEditKana.SplitWordAtNucleus("ハシ", 1) == "ハ'、シ'", "split: ハシ@1 → ハ'、シ'");
-    Check(AccentEditKana.SplitWordAtNucleus("コンニチワ", 2) == "コン'、ニ'チワ", "split: コンニチワ@2 → コン'、ニ'チワ");
+    Check(AccentEditKana.SplitWordAtNucleus("ハシ", 1) == "ハ'|シ'", "split: ハシ@1 → ハ'|シ'");
+    Check(AccentEditKana.SplitWordAtNucleus("コンニチワ", 2) == "コン'|ニ'チワ", "split: コンニチワ@2 → コン'|ニ'チワ");
     Check(AccentEditKana.SplitWordAtNucleus("ハシ", 0) is null, "split: 核が先頭なら不可");
     Check(AccentEditKana.SplitWordAtNucleus("ハシ", 2) is null, "split: 核が末尾なら不可");
-    var splitWords = AccentEditKana.Parse("コン'、ニ'チワ");
+    var splitWords = AccentEditKana.Parse("コン'|ニ'チワ");
     Check(splitWords.Count == 3
         && splitWords[0].AccentPosition == 1 && splitWords[0].Moras.Count == 2
         && splitWords[1].IsPunctuation
         && splitWords[2].AccentPosition == 0 && splitWords[2].Moras.Count == 3,
-        "split: parse → 前半(核1) + 、 + 後半(核0)");
-    Check(AccentEditKana.Build(splitWords) == "コン'、ニ'チワ", "split: build round trip");
+        "split: parse → 前半(核1) + | + 後半(核0)");
+    Check(AccentEditKana.Build(splitWords) == "コン'|ニ'チワ", "split: build round trip");
 }
 finally
 {
