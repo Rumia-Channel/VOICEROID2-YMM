@@ -161,6 +161,9 @@ internal sealed class Voiceroid2AccentEditorViewModel : IDisposable
         if (reading.Length == 0) return;
         if (reading == wordVm.EditableReading) return;
 
+        // YMM4 の読み欄 (AquesTalk 記法) と同じ記号が入力され得るため正規化する
+        reading = AquesTalkKana.NormalizeYukkuriKana(reading);
+
         string voiceName = parameter?.VoiceName ?? pronounce.NarratorName;
         if (string.IsNullOrWhiteSpace(voiceName)) return;
 

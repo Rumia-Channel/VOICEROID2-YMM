@@ -55,6 +55,29 @@ public static class AquesTalkKana
         => text.Replace(AccentMark.ToString(), string.Empty);
 
     /// <summary>
+    /// YMM4 が Yukkuri 形式プラグインへ渡す読み (AquesTalk 記法) を AI-Kana 入力へ正規化する。
+    /// YMM4 はセリフではなく独自変換した読み欄を text として渡すため、AquesTalk 記号を
+    /// AITalk が解釈できる形へ直す:
+    /// <list type="bullet">
+    ///   <item>「/」: YMM4 の句境界マーカー → 除去 (ポーズにしない。例: 弦巻マキ → つるまき/まき)</item>
+    ///   <item>「_」: AquesTalk の無声化 → AI-Kana の「!」へ変換 (例: で_ス → で!ス)</item>
+    /// </list>
+    /// かなはそのまま残し、TextToKana がカタカナ AI-Kana へ変換する。
+    /// </summary>
+    public static string NormalizeYukkuriKana(string text)
+    {
+        if (string.IsNullOrEmpty(text)) return text;
+
+        var sb = new StringBuilder(text.Length);
+        foreach (char c in text)
+        {
+            if (c == '/') continue;
+            sb.Append(c == '_' ? '!' : c);
+        }
+        return sb.ToString();
+    }
+
+    /// <summary>
     /// アクセントマーク付きテキストの指定を AI-Kana へ反映する。
     /// マークを含むアクセント句 ($ / | / ( 区切り) の既定アクセント (^) は除去され、
     /// 指定モーラの直後に ^ が挿入される。モーラ数が一致しない場合は元の AI-Kana を返す。

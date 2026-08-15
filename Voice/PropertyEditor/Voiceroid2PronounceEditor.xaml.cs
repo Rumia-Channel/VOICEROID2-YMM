@@ -182,6 +182,9 @@ public partial class Voiceroid2PronounceEditor : UserControl, IPropertyEditorCon
         if (string.IsNullOrWhiteSpace(sourceText))
             return string.Empty;
 
+        // YMM4 の読み欄 (AquesTalk 記法) を AI-Kana 入力へ正規化する
+        sourceText = AquesTalkKana.NormalizeYukkuriKana(sourceText);
+
         string voiceName = parameter?.VoiceName ?? pronounce.NarratorName;
         if (string.IsNullOrWhiteSpace(voiceName))
             return string.Empty;

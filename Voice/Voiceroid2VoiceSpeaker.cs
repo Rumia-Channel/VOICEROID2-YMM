@@ -73,7 +73,9 @@ public class Voiceroid2VoiceSpeaker : IVoiceSpeaker
             return Task.FromResult(text);
 
         var settings = Voiceroid2VoiceSettings.Default;
-        string speakText = ReadingApplier.Apply(text, settings.ReadingEntries);
+        // YMM4 は読み欄 (AquesTalk 記法) を渡すため、AITalk が扱えるかなへ正規化してから変換する
+        string speakText = ReadingApplier.Apply(
+            AquesTalkKana.NormalizeYukkuriKana(text), settings.ReadingEntries);
 
         return Task.Run(async () =>
         {
@@ -114,9 +116,10 @@ public class Voiceroid2VoiceSpeaker : IVoiceSpeaker
         var param = parameter as Voiceroid2VoiceParameter
             ?? (Voiceroid2VoiceParameter)CreateVoiceParameter();
 
-        // (1) 読み仮名辞書を適用 (テキスト置換)
+        // (1) YMM4 の読み欄 (AquesTalk 記法) を AI-Kana 入力へ正規化し、読み仮名辞書を適用
         var settings = Voiceroid2VoiceSettings.Default;
-        string speakText = ReadingApplier.Apply(text, settings.ReadingEntries);
+        string speakText = ReadingApplier.Apply(
+            AquesTalkKana.NormalizeYukkuriKana(text), settings.ReadingEntries);
 
         // (2) アクセントエディタでの手動編集があれば、その読み (編集用かな) を優先する
         if (pronounce is Voiceroid2VoicePronounce p

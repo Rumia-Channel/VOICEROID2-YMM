@@ -134,6 +134,24 @@ if (args.Length >= 2 && args[0] == "--real")
         Console.WriteLine($"editable kana: {AquesTalkKana.ToEditableKana(edited)}");
         Check(edited.Contains('^'), "accent mark applied to AI-Kana");
 
+        // ---- 再現調査: 「こんにちは、弦巻マキです」 ----
+        string repro = "こんにちは、弦巻マキです";
+        byte[] rkana = AITalkEngine.TextToKana(repro);
+        string rai = AITalkEngine.DecodeAnsiText(rkana);
+        Console.WriteLine($"REPRO texttokana: {rai}");
+        Console.WriteLine($"REPRO editable: {AquesTalkKana.ToEditableKana(AquesTalkKana.ApplyAccentMarks(repro, rai))}");
+
+        // ---- 再現調査: YMM4 の読み欄 (AquesTalk 記法) の扱い ----
+        // YMM4 は読み欄を text として渡すため、「/」をポーズにしない正規化が必要
+        // (正規化なし: ツルマキ$1_1マキデス と余計なポーズが入る)
+        string hatsuon = "こんにちわ、つるまき/まきで_ス";
+        string fixedKana = AITalkEngine.DecodeAnsiText(
+            AITalkEngine.TextToKana(AquesTalkKana.NormalizeYukkuriKana(hatsuon)));
+        Console.WriteLine($"HATSUON fixed: {fixedKana}");
+        Check(!fixedKana.Contains("$1_1"), "slash (/) no longer becomes a pause");
+        Check(fixedKana.Contains("ンニチワ")
+            && !fixedKana.Any(c => c is >= '\u3041' and <= '\u3096'), "kana converted to katakana");
+
         var pcm = AITalkEngine.KanaToSpeech(
             AITalkEngine.EncodeAnsiText(edited),
             new AITalkSpeakerParams(Volume: 1.0f, Speed: 1.0f, Pitch: 1.0f, Range: 1.0f, PauseSentence: 500));
@@ -376,6 +394,13 @@ try
     Check(AquesTalkKana.ApplyAccentMarks("コ'ンニチワ、サヨウナラ", "コ^ンニチワ$2_2サ^ヨウナラ") == "コ^ンニチワ$2_2サ^ヨウナラ", "accent applied to marked phrase only");
     Check(AquesTalkKana.ToEditableKana("<S>(Irq MARK=_AI@12)コ^ンニチワ$2_2ユ^ック!リ<H>") == "コ'ンニチワ、ユ'ックリ", "AI-Kana to editable kana");
     Check(AquesTalkKana.ToEditableKana("ハシ") == "ハシ", "editable kana passthrough");
+
+    // ---------------- YMM4 読み欄 (AquesTalk 記法) の正規化 ----------------
+    Check(AquesTalkKana.NormalizeYukkuriKana("こんにちわ、つるまき/まきで_ス") == "こんにちわ、つるまきまきで!ス",
+        "normalize: / 除去と _ → !");
+    Check(AquesTalkKana.NormalizeYukkuriKana("デ_ス") == "デ!ス", "normalize: 無声化");
+    Check(AquesTalkKana.NormalizeYukkuriKana("こんにちは") == "こんにちは", "normalize: 記号なしは不変");
+    Check(AquesTalkKana.NormalizeYukkuriKana(string.Empty) == string.Empty, "normalize: 空");
 
     // ---------------- アクセントエディタのデータモデル (AccentEditKana) ----------------
     var accentWords = AccentEditKana.Parse("コ'ンニチワ、ユ'ックリ");
