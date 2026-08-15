@@ -152,6 +152,20 @@ if (args.Length >= 2 && args[0] == "--real")
         Check(fixedKana.Contains("ンニチワ")
             && !fixedKana.Any(c => c is >= '\u3041' and <= '\u3096'), "kana converted to katakana");
 
+        // ---- BuildAiKana: プレビューと合成の共通パイプライン ----
+        string baseSerif = "こんにちは、弦巻マキです";
+        string aikanaNoEdit = AITalkEngine.BuildAiKana(baseSerif, null);
+        string aikanaSameReading = AITalkEngine.BuildAiKana(baseSerif, "コ'ンニチワ、ツルマ'キマキデス");
+        string aikanaChangedReading = AITalkEngine.BuildAiKana(baseSerif, "コンニチワ、ツルマキネコチャンダ");
+        Console.WriteLine($"BUILD aikana no-edit: {aikanaNoEdit}");
+        Console.WriteLine($"BUILD aikana same-reading: {aikanaSameReading}");
+        Console.WriteLine($"BUILD aikana changed-reading: {aikanaChangedReading}");
+        Check(aikanaNoEdit.Contains("ツ^ル"), "build aikana: セリフ由来の自然アクセントを維持");
+        Check(!aikanaSameReading.Contains("^ツ") && aikanaSameReading.Contains("マ^キ"),
+            "build aikana: アクセントのみの編集はセリフ由来を維持し核位置を反映");
+        Check(aikanaChangedReading.Contains("チャ") && aikanaChangedReading != aikanaSameReading,
+            "build aikana: 読み変更は再変換される");
+
         var pcm = AITalkEngine.KanaToSpeech(
             AITalkEngine.EncodeAnsiText(edited),
             new AITalkSpeakerParams(Volume: 1.0f, Speed: 1.0f, Pitch: 1.0f, Range: 1.0f, PauseSentence: 500));

@@ -119,16 +119,17 @@ public class Voiceroid2VoiceSpeaker : IVoiceSpeaker
         var settings = Voiceroid2VoiceSettings.Default;
         string speakText = ReadingApplier.Apply(YmmUserDictionary.Apply(text), settings.ReadingEntries);
 
-        // (2) アクセントエディタでの手動編集があれば、その読み (編集用かな) を優先する
+        // (2) アクセントエディタでの手動編集があれば、その読み (編集用かな) を差分として使う
+        string? editKana = null;
         if (pronounce is Voiceroid2VoicePronounce p
             && p.IsManualEdit
             && p.Matches(speakText, VoiceName)
             && !string.IsNullOrWhiteSpace(p.EditKana))
         {
-            speakText = p.EditKana;
+            editKana = p.EditKana;
         }
 
-        // (2) 合成 (aitalked.dll へのアクセスは共有ゲートで排他する)
+        // (3) 合成 (aitalked.dll へのアクセスは共有ゲートで排他する)
         await Voiceroid2EngineGate.Semaphore.WaitAsync();
         try
         {
@@ -150,17 +151,16 @@ public class Voiceroid2VoiceSpeaker : IVoiceSpeaker
                     AITalkInstallation.EnvValue(AITalkInstallation.EnvUserDir),
                     VoiceName);
 
-                // アクセントマーク「'」を読み (AI-Kana) へ反映する
-                string plain = AquesTalkKana.StripAccentMarks(speakText);
-                byte[] kana = AITalkEngine.TextToKana(plain);
-                string aiKana = AITalkEngine.DecodeAnsiText(kana);
-                byte[] edited = AITalkEngine.EncodeAnsiText(AquesTalkKana.ApplyAccentMarks(speakText, aiKana));
-                var pcm = AITalkEngine.KanaToSpeech(edited, new AITalkSpeakerParams(
-                    Volume: (float)param.Volume,
-                    Speed: (float)param.Speed,
-                    Pitch: (float)param.Pitch,
-                    Range: (float)param.Range,
-                    PauseSentence: (int)param.PauseSentence));
+                // セリフ由来の読みに手動編集 (アクセント核 / 読み変更) を反映する
+                string aiKana = AITalkEngine.BuildAiKana(speakText, editKana);
+                var pcm = AITalkEngine.KanaToSpeech(
+                    AITalkEngine.EncodeAnsiText(aiKana),
+                    new AITalkSpeakerParams(
+                        Volume: (float)param.Volume,
+                        Speed: (float)param.Speed,
+                        Pitch: (float)param.Pitch,
+                        Range: (float)param.Range,
+                        PauseSentence: (int)param.PauseSentence));
 
                 WavFile.WritePcm16Mono(filePath, pcm);
                 return new Voiceroid2VoicePronounce
@@ -168,7 +168,7 @@ public class Voiceroid2VoiceSpeaker : IVoiceSpeaker
                     SourceText = speakText,
                     NarratorName = VoiceName,
                     // アクセントエディタの基準として編集用かなも保存する
-                    EditKana = AquesTalkKana.ToEditableKana(AITalkEngine.DecodeAnsiText(edited)),
+                    EditKana = AquesTalkKana.ToEditableKana(aiKana),
                 };
             });
         }

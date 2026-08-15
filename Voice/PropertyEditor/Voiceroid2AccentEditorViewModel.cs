@@ -221,8 +221,12 @@ internal sealed class Voiceroid2AccentEditorViewModel : IDisposable
         // 反映待ちの読み編集を先に適用する (入力直後にプレビューしても古い読みで鳴らないように)
         await FlushPendingReadingAppliesAsync();
 
-        string kana = CurrentKana;
-        string plain = AquesTalkKana.StripAccentMarks(kana);
+        // 実際の合成と同じパイプライン: セリフ由来の読みに手動編集を反映する。
+        // これによりプレビューと実際の発音が一致する。
+        string baseText = pronounce.SourceText;
+        if (string.IsNullOrWhiteSpace(baseText))
+            baseText = CurrentKana; // 前回レンダーが無い場合は編集用かなをそのまま使う
+
         string voiceName = parameter?.VoiceName ?? pronounce.NarratorName;
         if (string.IsNullOrWhiteSpace(voiceName))
             return;
@@ -240,8 +244,7 @@ internal sealed class Voiceroid2AccentEditorViewModel : IDisposable
                         AITalkInstallation.EnvValue(AITalkInstallation.EnvUserDir),
                         voiceName);
 
-                    string aiKana = AITalkEngine.DecodeAnsiText(AITalkEngine.TextToKana(plain));
-                    aiKana = AquesTalkKana.ApplyAccentMarks(kana, aiKana);
+                    string aiKana = AITalkEngine.BuildAiKana(baseText, CurrentKana);
                     var pcm = AITalkEngine.KanaToSpeech(
                         AITalkEngine.EncodeAnsiText(aiKana),
                         ToSpeakerParams());

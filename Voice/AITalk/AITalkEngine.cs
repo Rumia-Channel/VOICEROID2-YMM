@@ -183,6 +183,45 @@ internal static class AITalkEngine
         ApplySpeakerParamsCore(in speakerParams);
     }
 
+    /// <summary>
+    /// セリフ由来の読み (AI-Kana) を生成し、アクセントエディタの手動編集 (編集用かな) を反映する。
+    /// プレビュー再生と実際の合成が同じパイプラインを使うための共通ヘルパー。
+    ///
+    /// <list type="bullet">
+    ///   <item><paramref name="editKana"/> が null / 空: セリフの読み変換のみ (エンジン既定アクセント)。</item>
+    ///   <item>編集用かなの読みがセリフ由来の読みと一致する場合 (アクセントのみの編集):
+    ///     エンジンの自然アクセントを保ったまま、指定された核位置だけを反映する
+    ///     (VOICEROID2 本体と同じ読みになる)。</item>
+    ///   <item>読み自体を変更した編集 (よみがな編集・句分割など):
+    ///     変更後の読みをエンジンで再変換して合成する。</item>
+    /// </list>
+    /// エンジン (aitalked.dll) が開かれている前提。
+    /// </summary>
+    public static string BuildAiKana(string baseText, string? editKana)
+    {
+        string plain = AquesTalkKana.StripAccentMarks(baseText);
+        string aiKana = DecodeAnsiText(TextToKana(plain));
+
+        if (string.IsNullOrWhiteSpace(editKana))
+            return AquesTalkKana.ApplyAccentMarks(baseText, aiKana);
+
+        // 編集用かなの読み (アクセントマーク除去) と、セリフ由来の読みを比較する
+        string baseReading = AquesTalkKana.StripAccentMarks(
+            AquesTalkKana.ToEditableKana(AquesTalkKana.ApplyAccentMarks(baseText, aiKana)));
+        string editReading = AquesTalkKana.StripAccentMarks(editKana);
+
+        if (string.Equals(baseReading, editReading, StringComparison.Ordinal))
+        {
+            // アクセントのみの編集: エンジン自然アクセントを保ったまま核位置だけ反映する
+            return AquesTalkKana.ApplyAccentMarks(editKana, aiKana);
+        }
+
+        // 読み自体を変更した編集: 変更後の読みをエンジンで再変換して合成する
+        string plainEdit = AquesTalkKana.StripAccentMarks(editKana);
+        string editAiKana = DecodeAnsiText(TextToKana(plainEdit));
+        return AquesTalkKana.ApplyAccentMarks(editKana, editAiKana);
+    }
+
     // ---------------- 内部実装 ----------------
 
     static void ApplySpeakerParamsCore(in AITalkSpeakerParams p)
