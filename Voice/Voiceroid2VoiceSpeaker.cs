@@ -35,11 +35,11 @@ public class Voiceroid2VoiceSpeaker : IVoiceSpeaker
     public bool IsVoiceDataCachingRequired => true;
 
     /// <summary>
-    /// サポートするテキスト書式。ゆっくりボイス形式 (AquesTalk 記法) に対応し、
-    /// YMM4 の発音 (読み) 編集 UI を使えるようにする。アクセント核は
-    /// モーラ直後の「'」で指定できる (例: ハ'シ)。
+    /// サポートするテキスト書式。通常の日本語テキスト (セリフ) を話す。
+    /// YMM4 はセリフをそのまま渡すため、AITalk の読み変換で辞書ベースのアクセントが使われる
+    /// (VOICEROID2 本体と同じ挙動)。セリフ内の「'」でアクセント核を指定できる (例: ハ'シ)。
     /// </summary>
-    public SupportedTextFormat Format => SupportedTextFormat.Yukkuri;
+    public SupportedTextFormat Format => SupportedTextFormat.Text;
 
     /// <summary>音声合成前に利用規約同意が必要ならインスタンスを返す (未使用)。</summary>
     public IVoiceLicense? License => null;
@@ -73,9 +73,8 @@ public class Voiceroid2VoiceSpeaker : IVoiceSpeaker
             return Task.FromResult(text);
 
         var settings = Voiceroid2VoiceSettings.Default;
-        // YMM4 は読み欄 (AquesTalk 記法) を渡すため、AITalk が扱えるかなへ正規化してから変換する
-        string speakText = ReadingApplier.Apply(
-            AquesTalkKana.NormalizeYukkuriKana(text), settings.ReadingEntries);
+        // YMM4 の読み上げ辞書とプラグインの読み仮名辞書を適用してから読みに変換する
+        string speakText = ReadingApplier.Apply(YmmUserDictionary.Apply(text), settings.ReadingEntries);
 
         return Task.Run(async () =>
         {
@@ -116,10 +115,9 @@ public class Voiceroid2VoiceSpeaker : IVoiceSpeaker
         var param = parameter as Voiceroid2VoiceParameter
             ?? (Voiceroid2VoiceParameter)CreateVoiceParameter();
 
-        // (1) YMM4 の読み欄 (AquesTalk 記法) を AI-Kana 入力へ正規化し、読み仮名辞書を適用
+        // (1) YMM4 の読み上げ辞書とプラグインの読み仮名辞書を適用 (テキスト置換)
         var settings = Voiceroid2VoiceSettings.Default;
-        string speakText = ReadingApplier.Apply(
-            AquesTalkKana.NormalizeYukkuriKana(text), settings.ReadingEntries);
+        string speakText = ReadingApplier.Apply(YmmUserDictionary.Apply(text), settings.ReadingEntries);
 
         // (2) アクセントエディタでの手動編集があれば、その読み (編集用かな) を優先する
         if (pronounce is Voiceroid2VoicePronounce p

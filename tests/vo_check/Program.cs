@@ -402,6 +402,34 @@ try
     Check(AquesTalkKana.NormalizeYukkuriKana("こんにちは") == "こんにちは", "normalize: 記号なしは不変");
     Check(AquesTalkKana.NormalizeYukkuriKana(string.Empty) == string.Empty, "normalize: 空");
 
+    // ---------------- YMM4 辞書 (YmmUserDictionary) ----------------
+    // 辞書が無い状態では何も置換しない (vo_check の出力ディレクトリには user\setting が無い)
+    Check(YmmUserDictionary.Apply("USBメモリ") == "USBメモリ", "ymm dict: 辞書なしは不変");
+
+    string dictBase = Path.Combine(AppContext.BaseDirectory, "user", "setting", "4.99.0.1");
+    string dictPath = Path.Combine(dictBase, "YukkuriMovieMaker.KanjiToYomi.UserDictionary.json");
+    Directory.CreateDirectory(dictBase);
+    try
+    {
+        File.WriteAllText(dictPath,
+            "{\"WordSets\":[{\"IsEnabled\":true,\"From\":\"XYZ\",\"To\":\"エックスワイゼット\",\"IsRegex\":false,\"IgnoreCase\":true},"
+            + "{\"IsEnabled\":true,\"From\":\"([0-9]{2}):([0-9]{2})\",\"To\":\"$1時$2分\",\"IsRegex\":true,\"IgnoreCase\":true},"
+            + "{\"IsEnabled\":false,\"From\":\"無効\",\"To\":\"ムコウ\",\"IsRegex\":false,\"IgnoreCase\":true}],"
+            + "\"AsteriskWordSets\":[{\"IsEnabled\":true,\"From\":\"うんち\",\"To\":\"う◯ち\",\"IsRegex\":false,\"IgnoreCase\":true}]}",
+            System.Text.Encoding.UTF8);
+
+        Check(YmmUserDictionary.Apply("XYZです") == "エックスワイゼットです", "ymm dict: リテラル置換");
+        Check(YmmUserDictionary.Apply("USBメモリ") == "USBメモリ", "ymm dict: 未登録は不変");
+        Check(YmmUserDictionary.Apply("12:30") == "12時30分", "ymm dict: 正規表現 + 後方参照");
+        Check(YmmUserDictionary.Apply("無効な単語") == "無効な単語", "ymm dict: 無効エントリは無視");
+        Check(YmmUserDictionary.Apply("うんち") == "う◯ち", "ymm dict: 伏せ字 (AsteriskWordSets)");
+    }
+    finally
+    {
+        try { Directory.Delete(Path.Combine(AppContext.BaseDirectory, "user"), true); }
+        catch { /* ignore */ }
+    }
+
     // ---------------- アクセントエディタのデータモデル (AccentEditKana) ----------------
     var accentWords = AccentEditKana.Parse("コ'ンニチワ、ユ'ックリ");
     Check(accentWords.Count == 3, "accent parse: 3 words (2 kana + 1 punctuation)");
